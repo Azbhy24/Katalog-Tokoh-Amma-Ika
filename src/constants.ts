@@ -5,13 +5,28 @@
 
 export interface Product {
   id: string;
+  barcode?: string;
   name: string;
   price: number;
   unit: string;
   category: string;
   image: string;
   inStock: boolean;
+  featured?: boolean;
 }
+
+export const PRODUCT_CATEGORIES = [
+  'Sembako',
+  'Mie Instan',
+  'Minuman',
+  'Bumbu',
+  'Snack',
+  'Kebutuhan Rumah',
+  'Telur',
+  'Unggulan',
+  'Makanan Matang',
+  'Cemilan & Dessert'
+];
 
 export interface Bundle {
   id: string;

@@ -25,6 +25,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "barcode": { "type": "string" },
         "name": { "type": "string" },
         "price": { "type": "integer" },
         "unit": { "type": "string" },

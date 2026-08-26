@@ -33,7 +33,10 @@ import {
   ExternalLink,
   Globe,
   Share2,
-  Check
+  Check,
+  Barcode,
+  Camera,
+  Scan
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -45,7 +48,8 @@ import {
   Tooltip, 
   ResponsiveContainer
 } from 'recharts';
-import { PRODUCTS, BUNDLES, CONTACTS, type Product, type Bundle } from './constants';
+import { PRODUCTS, BUNDLES, CONTACTS, PRODUCT_CATEGORIES, type Product, type Bundle } from './constants';
+import AdminAddProduct from './components/AdminAddProduct';
 import { 
   db, 
   auth, 
@@ -343,7 +347,7 @@ export default function App() {
   const [adminPasscode, setAdminPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
 
-  const [adminTab, setAdminTab] = useState<'orders' | 'products'>('orders');
+  const [adminTab, setAdminTab] = useState<'orders' | 'products' | 'add-product'>('orders');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
@@ -672,7 +676,8 @@ export default function App() {
         unit: editingProduct.unit,
         category: editingProduct.category,
         image: editingProduct.image,
-        inStock: editingProduct.inStock
+        inStock: editingProduct.inStock,
+        ...(editingProduct.barcode?.trim() ? { barcode: editingProduct.barcode.trim() } : {})
       });
       setEditingProduct(null);
       showAlert("Berhasil", "Produk berhasil diperbarui!");
@@ -2406,28 +2411,40 @@ export default function App() {
               ) : (
                 <div className="space-y-10">
                   {/* Tab Selector */}
-                  <div className="flex gap-4 border-b border-neutral-200 pb-1">
+                  <div className="flex flex-wrap gap-2 sm:gap-4 border-b border-neutral-200 pb-1">
                     <button
                       type="button"
                       onClick={() => setAdminTab('orders')}
-                      className={`pb-4 px-3 font-bold text-xs tracking-wider transition-all border-b-2 uppercase ${
+                      className={`pb-4 px-3 font-bold text-xs tracking-wider transition-all border-b-2 uppercase cursor-pointer ${
                         adminTab === 'orders' 
                           ? 'border-brand-600 text-brand-600' 
                           : 'border-transparent text-neutral-400 hover:text-neutral-600'
                       }`}
                     >
-                      Ringkasan & Pesanan
+                      Ringkasan & Pesanan 📊
                     </button>
                     <button
                       type="button"
                       onClick={() => setAdminTab('products')}
-                      className={`pb-4 px-3 font-bold text-xs tracking-wider transition-all border-b-2 uppercase ${
+                      className={`pb-4 px-3 font-bold text-xs tracking-wider transition-all border-b-2 uppercase cursor-pointer ${
                         adminTab === 'products' 
                           ? 'border-brand-600 text-brand-600' 
                           : 'border-transparent text-neutral-400 hover:text-neutral-600'
                       }`}
                     >
-                      Kelola Etalase / Produk
+                      Kelola Etalase ({products.length}) 📋
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAdminTab('add-product')}
+                      className={`pb-4 px-3 font-bold text-xs tracking-wider transition-all border-b-2 uppercase flex items-center gap-1.5 cursor-pointer ${
+                        adminTab === 'add-product' 
+                          ? 'border-brand-600 text-brand-600 bg-brand-50/50 rounded-t-lg' 
+                          : 'border-transparent text-brand-600 hover:text-brand-700'
+                      }`}
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Tambah Produk (Scan Barcode) 📷</span>
                     </button>
                   </div>
 
@@ -2497,7 +2514,7 @@ export default function App() {
                           <button 
                             type="button"
                             onClick={handleToggleStoreStatus}
-                            className={`w-14 h-7 rounded-full p-1 relative items-center transition-all ${storeOpen ? 'bg-green-500' : 'bg-red-400'}`}
+                            className={`w-14 h-7 rounded-full p-1 relative items-center transition-all cursor-pointer ${storeOpen ? 'bg-green-500' : 'bg-red-400'}`}
                           >
                             <span className={`block w-5 h-5 bg-white rounded-full shadow-sm transition-all absolute top-1 ${storeOpen ? 'right-1' : 'left-1'}`} />
                           </button>
@@ -2510,14 +2527,14 @@ export default function App() {
                           <div className="flex items-center justify-center gap-4">
                             <button 
                               onClick={() => handleChangeMinOrder(-5000)} 
-                              className="w-8 h-8 rounded-lg border border-neutral-250 flex items-center justify-center bg-white"
+                              className="w-8 h-8 rounded-lg border border-neutral-250 flex items-center justify-center bg-white cursor-pointer"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                             <span className="text-base font-extrabold tracking-tight text-neutral-800">{formatPrice(minOrder)}</span>
                             <button 
                               onClick={() => handleChangeMinOrder(5000)} 
-                              className="w-8 h-8 rounded-lg border border-neutral-250 flex items-center justify-center bg-white"
+                              className="w-8 h-8 rounded-lg border border-neutral-250 flex items-center justify-center bg-white cursor-pointer"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -2584,7 +2601,7 @@ export default function App() {
                               </select>
                               <button 
                                 onClick={() => handleDeleteOrder(o.id)} 
-                                className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors md:opacity-0 group-hover/item:opacity-100"
+                                className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors md:opacity-0 group-hover/item:opacity-100 cursor-pointer"
                                 title="Hapus arsip ini"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -2629,7 +2646,13 @@ export default function App() {
                     </div>
                   </section>
                 </div>
-              ) : (
+                  ) : adminTab === 'add-product' ? (
+                    <AdminAddProduct 
+                      showAlert={showAlert} 
+                      onSuccess={() => setAdminTab('products')} 
+                      onCancel={() => setAdminTab('products')} 
+                    />
+                  ) : (
                 <div className="space-y-8">
                   {/* Product management tab view */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -2638,141 +2661,31 @@ export default function App() {
                         Kelola Etalase Toko
                       </h3>
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1.5">
-                        Kelola ketersediaan, edit info detail, atau tambah produk baru
+                        Kelola ketersediaan, edit info detail, scan barcode kemasan, atau tambah produk baru
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
                       <button
                         type="button"
                         onClick={handleSeedProducts}
-                        className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors shrink-0 flex items-center gap-1.5 border border-neutral-200"
+                        className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors shrink-0 flex items-center gap-1.5 border border-neutral-200 cursor-pointer"
                       >
                         Reset Produk Bawaan 🔄
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setNewProduct({
-                            name: '',
-                            price: 0,
-                            unit: 'pcs',
-                            category: 'Sembako',
-                            image: '',
-                            inStock: true
-                          });
-                          setIsAddingProduct(true);
-                        }}
-                        className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 shrink-0 flex items-center gap-1.5"
+                        onClick={() => setAdminTab('add-product')}
+                        className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 shrink-0 flex items-center gap-1.5 cursor-pointer"
                       >
-                        Tambah Produk ➕
+                        <Camera className="w-4 h-4" />
+                        <span>Tambah / Scan Barcode 📷</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Add Product Form Box */}
-                  {isAddingProduct && (
-                    <div className="p-6 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-6">
-                      <h4 className="font-black text-neutral-900 uppercase tracking-tight text-sm leading-none">
-                        ➕ TAMBAH PRODUK BARU KE DATABASE CLOUD
-                      </h4>
-                      <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Nama Produk *</label>
-                          <input
-                            type="text"
-                            required
-                            value={newProduct.name || ''}
-                            onChange={e => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Contoh: Beras SPHP 5kg"
-                            className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Harga (Rp) *</label>
-                            <input
-                              type="number"
-                              required
-                              value={newProduct.price || ''}
-                              onChange={e => setNewProduct(prev => ({ ...prev, price: Number(e.target.value) }))}
-                              placeholder="Contoh: 15000"
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Satuan Unit</label>
-                            <input
-                              type="text"
-                              value={newProduct.unit || ''}
-                              onChange={e => setNewProduct(prev => ({ ...prev, unit: e.target.value }))}
-                              placeholder="Contoh: pcs / kg / 5kg"
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Kategori</label>
-                            <select
-                              value={newProduct.category || 'Sembako'}
-                              onChange={e => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                            >
-                              <option value="Unggulan">Unggulan</option>
-                              <option value="Sembako">Sembako</option>
-                              <option value="Bumbu">Bumbu</option>
-                              <option value="Mie Instan">Mie Instan</option>
-                              <option value="Kebutuhan Rumah">Kebutuhan Rumah</option>
-                              <option value="Minuman">Minuman</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Status Stok</label>
-                            <div className="flex items-center gap-3 h-10">
-                              <label className="inline-flex items-center cursor-pointer gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={newProduct.inStock !== false}
-                                  onChange={e => setNewProduct(prev => ({ ...prev, inStock: e.target.checked }))}
-                                  className="w-4.5 h-4.5 text-brand-600 border-neutral-300 rounded"
-                                />
-                                <span className="text-xs font-bold text-neutral-700">Tersedia di Etalase</span>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">URL Gambar Produk</label>
-                          <input
-                            type="text"
-                            value={newProduct.image || ''}
-                            onChange={e => setNewProduct(prev => ({ ...prev, image: e.target.value }))}
-                            placeholder="Contoh: https://link-gambar.com/beras.jpg"
-                            className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                          />
-                        </div>
-                        <div className="md:col-span-2 flex justify-end gap-3 pt-3">
-                          <button
-                            type="button"
-                            onClick={() => setIsAddingProduct(false)}
-                            className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            type="submit"
-                            className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-md transition-all active:scale-95"
-                          >
-                            Simpan Produk Baru 💾
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-
                   {/* Edit Product Form Box */}
                   {editingProduct && (
-                    <div className="p-6 bg-brand-50/50 border border-brand-200 rounded-2xl space-y-6">
+                    <div className="p-6 bg-brand-50/50 border border-brand-200 rounded-2xl space-y-6 animate-in fade-in">
                       <h4 className="font-black text-neutral-900 uppercase tracking-tight text-sm leading-none">
                         ✏️ EDIT DETAIL PRODUK: {editingProduct.name.toUpperCase()}
                       </h4>
@@ -2808,37 +2721,48 @@ export default function App() {
                             />
                           </div>
                         </div>
+
+                        {/* Barcode & Category */}
                         <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Barcode</label>
+                            <input
+                              type="text"
+                              value={editingProduct.barcode || ''}
+                              onChange={e => setEditingProduct(prev => prev ? ({ ...prev, barcode: e.target.value }) : null)}
+                              placeholder="Nomor Barcode"
+                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-mono font-bold focus:outline-none focus:border-brand-500 text-neutral-800"
+                            />
+                          </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Kategori</label>
                             <select
                               value={editingProduct.category || 'Sembako'}
                               onChange={e => setEditingProduct(prev => prev ? ({ ...prev, category: e.target.value }) : null)}
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
+                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800 cursor-pointer"
                             >
-                              <option value="Unggulan">Unggulan</option>
-                              <option value="Sembako">Sembako</option>
-                              <option value="Bumbu">Bumbu</option>
-                              <option value="Mie Instan">Mie Instan</option>
-                              <option value="Kebutuhan Rumah">Kebutuhan Rumah</option>
-                              <option value="Minuman">Minuman</option>
+                              {PRODUCT_CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
                             </select>
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Status Stok</label>
-                            <div className="flex items-center gap-3 h-10">
-                              <label className="inline-flex items-center cursor-pointer gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={editingProduct.inStock !== false}
-                                  onChange={e => setEditingProduct(prev => prev ? ({ ...prev, inStock: e.target.checked }) : null)}
-                                  className="w-4.5 h-4.5 text-brand-600 border-neutral-300 rounded"
-                                />
-                                <span className="text-xs font-bold text-neutral-700">Tersedia di Etalase</span>
-                              </label>
-                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Status Stok</label>
+                          <div className="flex items-center gap-3 h-10">
+                            <label className="inline-flex items-center cursor-pointer gap-2 bg-white px-3 py-2 rounded-lg border border-neutral-200">
+                              <input
+                                type="checkbox"
+                                checked={editingProduct.inStock !== false}
+                                onChange={e => setEditingProduct(prev => prev ? ({ ...prev, inStock: e.target.checked }) : null)}
+                                className="w-4.5 h-4.5 text-brand-600 border-neutral-300 rounded cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-neutral-700">Tersedia di Etalase</span>
+                            </label>
                           </div>
                         </div>
+
                         <div className="space-y-1 md:col-span-2">
                           <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">URL Gambar Produk</label>
                           <input
@@ -2852,13 +2776,13 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setEditingProduct(null)}
-                            className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors"
+                            className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
                           >
                             Batal
                           </button>
                           <button
                             type="submit"
-                            className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-md transition-all active:scale-95"
+                            className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
                           >
                             Simpan Perubahan 💾
                           </button>
@@ -2881,6 +2805,12 @@ export default function App() {
                           <span className="absolute top-2.5 left-2.5 bg-neutral-900/80 backdrop-blur-md text-white font-bold text-[9px] px-2.5 py-1 rounded-full uppercase tracking-widest">
                             {p.category}
                           </span>
+                          {p.barcode && (
+                            <span className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white font-mono font-bold text-[9px] px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <Barcode className="w-3 h-3 text-amber-400" />
+                              {p.barcode}
+                            </span>
+                          )}
                         </div>
                         
                         <div className="p-4 flex-1 flex flex-col justify-between gap-4">
@@ -2901,7 +2831,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => toggleStockStatus(p)}
-                              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
                                 p.inStock
                                   ? 'bg-green-50 text-green-700 border-green-150 hover:bg-green-100'
                                   : 'bg-red-50 text-red-500 border-red-150 hover:bg-red-100'
@@ -2915,7 +2845,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => setEditingProduct(p)}
-                                className="p-1.5 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 rounded-lg border border-neutral-200 transition-colors text-xs"
+                                className="p-1.5 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 rounded-lg border border-neutral-200 transition-colors text-xs cursor-pointer"
                                 title="Edit info"
                               >
                                 ✏️
@@ -2924,7 +2854,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteProduct(p.id)}
-                                className="p-1.5 text-neutral-405 hover:text-red-500 hover:bg-red-50 rounded-lg border border-neutral-200 transition-colors"
+                                className="p-1.5 text-neutral-405 hover:text-red-500 hover:bg-red-50 rounded-lg border border-neutral-200 transition-colors cursor-pointer"
                                 title="Hapus produk"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

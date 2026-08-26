@@ -37,7 +37,7 @@ service cloud.firestore {
     // Product rules
     match /products/{productId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if true;
       
       function isValidProduct(data) {
         return data.keys().hasAll(['id', 'name', 'price', 'unit', 'category', 'image', 'inStock'])
@@ -47,7 +47,8 @@ service cloud.firestore {
           && data.unit is string
           && data.category is string
           && data.image is string
-          && data.inStock is bool;
+          && data.inStock is bool
+          && (!('barcode' in data) || (data.barcode is string && data.barcode.size() <= 128));
       }
     }
 
