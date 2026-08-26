@@ -1,0 +1,6 @@
+{
+  "name": "Amma Ika - Digital Grocery",
+  "description": "Premium digital grocery platform for Warung Amma Ika. Minimalist, modern, and high-performance ordering system for Pinrang and beyond.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warung Amma Ika - Toko Kelontong di Lero, Pinrang</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Amma Ika">
+    <meta name="application-name" content="Warung Amma Ika">
+    <meta name="theme-color" content="#ea580c">
+    <meta name="description" content="Warung Amma Ika - Toko Kelontong di Lero, Suppa, Pinrang. Sembako lengkap, kerupuk bakwan ter-enak!">
+    <link rel="icon" type="image/png" sizes="32x32" id="favicon32">
+    <link rel="icon" type="image/png" sizes="16x16" id="favicon16">
+    <link rel="apple-touch-icon" id="appleTouchIcon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa',
+                            300: '#fdba74', 400: '#fb923c', 500: '#f97316',
+                            600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans bg-gray-50 text-neutral-900">
+
+<div id="toastContainer" class="fixed bottom-24 right-4 z-[100] flex flex-col gap-2"></div>
+
+<div id="installBanner" class="hidden fixed bottom-0 left-0 right-0 z-[90] bg-white border-t border-neutral-200 shadow-2xl slide-up">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shrink-0 shadow-md">
+                <span class="text-xl">🏪</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-sm text-neutral-900">Install Warung Amma Ika</h3>
+                <p class="text-xs text-neutral-500 mt-0.5">Akses cepat dari home screen, bisa dibuka offline</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="dismissInstall()" class="text-xs text-neutral-400 hover:text-neutral-600 px-2 py-1.5 transition-colors">Nanti</button>
+                <button onclick="installApp()" class="bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors install-pulse">Install</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="flex items-center justify-between h-16">
+            <a href="#" class="flex items-center gap-2.5 shrink-0">
+                <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shadow-md shadow-brand-200"><span class="text-lg">🏪</span></div>
+                <div class="hidden sm:block"><h1 class="text-lg font-bold text-brand-700 leading-tight">Warung Amma Ika</h1><p class="text-[10px] text-neutral-400 -mt-0.5 tracking-wide">TOKO KELONTONG • LERO, PINRANG</p></div>
+            </a>
+            <div class="flex-1 max-w-xl mx-4">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400"></i>
+                    <input type="text" id="searchInput" placeholder="Cari produk... (beras, indomie, kerupuk)" class="w-full pl-10 pr-4 py-2.5 bg-gray-100 border border-transparent rounded-xl text-sm focus:outline-none focus:bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all" oninput="handleSearch(this.value)">
+                </div>
+            </div>
+            <div class="flex items-center gap-1 sm:gap-3">
+                <a href="https://wa.me/6285298585059" target="_blank" class="hidden md:flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 transition-colors px-3 py-2 rounded-lg hover:bg-brand-50 font-medium"><i data-lucide="phone" class="w-4 h-4"></i><span>Hubungi</span></a>
+                <button onclick="toggleCart()" class="relative p-2.5 rounded-xl hover:bg-gray-100 transition-colors"><i data-lucide="shopping-cart" class="w-5 h-5 text-neutral-700"></i><span id="cartBadge" class="hidden absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full items-center justify-center">0</span></button>
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2.5 rounded-xl hover:bg-gray-100 transition-colors"><i data-lucide="menu" class="w-5 h-5 text-neutral-700"></i></button>
+            </div>
+        </div>
+    </div>
+    <div id="mobileMenu" class="hidden md:hidden border-t border-neutral-100 bg-white">
+        <div class="px-4 py-3 space-y-1">
+            <a href="#beranda" onclick="toggleMobileMenu()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-brand-50 text-sm font-medium text-neutral-700"><i data-lucide="home" class="w-4 h-4"></i>Beranda</a>
+            <a href="#produk" onclick="toggleMobileMenu()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-brand-50 text-sm font-medium text-neutral-700"><i data-lucide="package" class="w-4 h-4"></i>Produk</a>
+            <a href="#tentang" onclick="toggleMobileMenu()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-brand-50 text-sm font-medium text-neutral-700"><i data-lucide="info" class="w-4 h-4"></i>Tentang</a>
+            <a href="#lokasi" onclick="toggleMobileMenu()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-brand-50 text-sm font-medium text-neutral-700"><i data-lucide="map-pin" class="w-4 h-4"></i>Lokasi</a>
+            <a href="https://wa.me/6285298585059" target="_blank" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium"><i data-lucide="message-circle" class="w-4 h-4"></i>WhatsApp</a>
+        </div>
+    </div>
+</header>
+
+<div id="cartOverlay" class="hidden fixed inset-0 bg-black/40 z-[60]" onclick="toggleCart()"></div>
+<div id="cartSidebar" class="fixed top-0 right-0 h-full w-full max-w-md bg-white z-[70] transform translate-x-full transition-transform duration-300 ease-out flex flex-col shadow-2xl">
+    <div class="flex items-center justify-between p-4 border-b border-neutral-100">
+        <div class="flex items-center gap-2"><i data-lucide="shopping-cart" class="w-5 h-5 text-brand-500"></i><h2 class="text-lg font-semibold">Keranjang Belanja</h2></div>
+        <button onclick="toggleCart()" class="p-2 rounded-lg hover:bg-gray-100 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div id="cartItems" class="flex-1 overflow-y-auto p-4"></div>
+    <div id="cartFooter" class="hidden border-t border-neutral-100 p-4 bg-gray-50">
+        <div class="flex justify-between items-center mb-3"><span class="text-neutral-600">Total</span><span id="cartTotal" class="text-xl font-bold text-brand-700">Rp 0</span></div>
+        <button onclick="checkoutWhatsApp()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md shadow-brand-200"><i data-lucide="message-circle" class="w-5 h-5"></i>Pesan via WhatsApp</button>
+        <p class="text-[11px] text-neutral-400 text-center mt-2">Pesanan akan dikirim ke WhatsApp Warung Amma Ika</p>
+    </div>
+</div>
+
+<main class="pt-16">
+    <section id="beranda" class="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-500 to-amber-500">
+        <div class="absolute inset-0 opacity-10"><div class="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl"></div><div class="absolute bottom-10 right-10 w-60 h-60 bg-yellow-300 rounded-full blur-3xl"></div><div class="absolute top-1/2 left-1/3 w-32 h-32 bg-brand-300 rounded-full blur-2xl"></div></div>
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div class="text-white">
+                    <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6"><span class="w-2 h-2 bg-green-300 rounded-full pulse-dot" id="statusDot"></span><span class="text-sm font-medium" id="openStatus">Buka Sekarang</span></div>
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-4">Warung<br><span class="text-amber-200">Amma Ika</span></h1>
+                    <p class="text-lg text-brand-100 mb-2 max-w-md leading-relaxed">Toko kelontong di Lero, Suppa, Pinrang. Menyediakan kebutuhan harian Anda dengan harga terjangkau!</p>
+                    <p class="text-sm text-brand-200 mb-8 flex items-center gap-2"><span>🦀</span> Terkenal dengan <strong>Kerupuk Bakwan Ter-Enak!</strong></p>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="#produk" class="inline-flex items-center gap-2 bg-white text-brand-700 font-semibold px-6 py-3 rounded-xl hover:bg-brand-50 transition-colors shadow-lg"><i data-lucide="shopping-bag" class="w-5 h-5"></i>Belanja Sekarang</a>
+                        <a href="https://wa.me/6285298585059" target="_blank" class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white font-semibold px-6 py-3 rounded-xl hover:bg-white/25 transition-colors border border-white/20"><i data-lucide="message-circle" class="w-5 h-5"></i>Tanya Stok</a>
+                    </div>
+                </div>
+                <div class="hidden md:flex flex-col items-center justify-center relative">
+                    <div class="w-64 h-64 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20 flex items-center justify-center float-y shadow-2xl"><div class="text-center"><span class="text-8xl block mb-2">🏪</span><span class="text-white font-bold text-xl">Amma' Ika</span><span class="text-amber-200 text-sm block mt-1 tracking-widest">PINRANG</span></div></div>
+                    <div class="absolute -bottom-2 -left-2 bg-white rounded-xl p-3 shadow-lg flex items-center gap-3 fade-in"><div class="flex -space-x-1"><span class="text-lg">👨</span><span class="text-lg">👩</span><span class="text-lg">👦</span></div><div><div class="flex items-center gap-1"><span class="text-yellow-400 text-sm">★★★★★</span><span class="text-sm font-bold">4.7</span></div><p class="text-[10px] text-neutral-500">3 ulasan di Google</p></div></div>
+                    <div class="absolute -top-2 -right-2 bg-white rounded-xl p-3 shadow-lg fade-in"><div class="flex items-center gap-2"><span class="text-2xl">🦀</span><div><p class="text-xs font-bold text-brand-700">Kerupuk Bakwan</p><p class="text-[10px] text-neutral-500">Ter-enak di Lero!</p></div></div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-amber-50 border-b border-amber-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+            <div class="flex items-center gap-3 overflow-x-auto no-scrollbar">
+                <span class="shrink-0 inline-flex items-center gap-1.5 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-full"><i data-lucide="zap" class="w-3 h-3"></i>PROMO</span>
+                <div class="flex gap-6 text-sm text-amber-800 whitespace-nowrap">
+                    <span>🦀 Kerupuk Bakwan Ter-Enak di Ujung Lero!</span><span class="text-amber-300">|</span>
+                    <span>🚚 Layanan antar untuk area Lero & sekitarnya</span><span class="text-amber-300">|</span>
+                    <span>💰 Harga murah, pelayanan ramah!</span><span class="text-amber-300">|</span>
+                    <span>📞 Pesan via WhatsApp: 0852-9858-5059</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div class="flex items-center justify-between mb-6"><h2 class="text-xl font-bold text-neutral-900">Kategori Produk</h2></div>
+        <div class="flex gap-3 overflow-x-auto no-scrollbar pb-2" id="categoryBar">
+            <button onclick="filterCategory('semua')" data-cat="semua" class="cat-btn active shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-brand-500 text-white border-brand-500"><i data-lucide="grid-3x3" class="w-4 h-4"></i>Semua</button>
+            <button onclick="filterCategory('unggulan')" data-cat="unggulan" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><span>🦀</span>Unggulan</button>
+            <button onclick="filterCategory('sembako')" data-cat="sembako" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="wheat" class="w-4 h-4"></i>Sembako</button>
+            <button onclick="filterCategory('mie-instan')" data-cat="mie-instan" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="soup" class="w-4 h-4"></i>Mie Instan</button>
+            <button onclick="filterCategory('minuman')" data-cat="minuman" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="cup-soda" class="w-4 h-4"></i>Minuman</button>
+            <button onclick="filterCategory('bumbu')" data-cat="bumbu" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="flame" class="w-4 h-4"></i>Bumbu</button>
+            <button onclick="filterCategory('snack')" data-cat="snack" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="cookie" class="w-4 h-4"></i>Snack</button>
+            <button onclick="filterCategory('kebutuhan')" data-cat="kebutuhan" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="spray-can" class="w-4 h-4"></i>Kebutuhan Rumah</button>
+            <button onclick="filterCategory('telur')" data-cat="telur" class="cat-btn shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all bg-white text-neutral-700 border-neutral-200 hover:border-brand-300"><i data-lucide="egg" class="w-4 h-4"></i>Telur</button>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
+        <div class="bg-gradient-to-r from-red-600 to-brand-500 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <div class="absolute bottom-0 left-20 w-24 h-24 bg-white/5 rounded-full translate-y-1/2"></div>
+            <div class="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div><div class="flex items-center gap-2 mb-2"><i data-lucide="zap" class="w-5 h-5 text-yellow-300"></i><h2 class="text-2xl font-bold">🔥 Kerupuk Bakwan Ter-Enak!</h2></div><p class="text-red-100">"Penjual kerupuk bakwan ter-enak di ujung Lero" — Review pelanggan kami!</p></div>
+                <div class="flex items-center gap-2 shrink-0"><span class="text-sm text-red-200">Promo berakhir</span><div class="flex gap-1" id="countdown"><span class="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg font-bold text-lg" id="cdHours">08</span><span class="font-bold text-lg">:</span><span class="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg font-bold text-lg" id="cdMinutes">45</span><span class="font-bold text-lg">:</span><span class="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg font-bold text-lg" id="cdSeconds">30</span></div></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="produk" class="max-w-7xl mx-auto px-4 sm:px-6 pb-16">
+        <div class="flex items-center justify-between mb-6">
+            <div><h2 class="text-xl font-bold text-neutral-900">Produk Kami</h2><p class="text-sm text-neutral-500 mt-0.5" id="productCount">Menampilkan semua produk</p></div>
+            <select id="sortSelect" onchange="sortProducts(this.value)" class="text-sm border border-neutral-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 focus:border-brand-400"><option value="default">Urutkan</option><option value="price-low">Harga: Rendah ke Tinggi</option><option value="price-high">Harga: Tinggi ke Rendah</option><option value="name-az">Nama: A-Z</option><option value="discount">Diskon Terbesar</option></select>
+        </div>
+        <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4"></div>
+        <div id="emptyState" class="hidden text-center py-16"><div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="search-x" class="w-8 h-8 text-neutral-400"></i></div><h3 class="text-lg font-semibold text-neutral-700 mb-1">Produk Tidak Ditemukan</h3><p class="text-neutral-500 text-sm">Coba kata kunci lain atau pilih kategori berbeda</p></div>
+    </section>
+
+    <section class="bg-white border-t border-neutral-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+            <div class="text-center mb-10"><h2 class="text-2xl sm:text-3xl font-bold text-neutral-900 mb-3">Apa Kata Pelanggan?</h2><div class="flex items-center justify-center gap-2"><span class="text-yellow-400 text-2xl">★★★★★</span><span class="text-2xl font-bold text-neutral-900">4.7</span><span class="text-neutral-400 text-sm">dari 3 ulasan Google</span></div></div>
+            <div class="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+                <div class="bg-brand-50 rounded-2xl p-6 border border-brand-100"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-brand-200 rounded-full flex items-center justify-center font-bold text-brand-700">A</div><div><p class="font-semibold text-sm">Abdullah Abdul</p><p class="text-xs text-neutral-400">4 hari lalu</p></div></div><div class="flex gap-0.5 mb-2"><span class="text-yellow-400 text-sm">★★★★★</span></div><p class="text-sm text-neutral-600 italic">"Penjual kerupuk bakwan ter-enak di ujung lero"</p></div>
+                <div class="bg-brand-50 rounded-2xl p-6 border border-brand-100"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-brand-200 rounded-full flex items-center justify-center font-bold text-brand-700">M</div><div><p class="font-semibold text-sm">M</p><p class="text-xs text-neutral-400">Pelanggan</p></div></div><div class="flex gap-0.5 mb-2"><span class="text-yellow-400 text-sm">★★★★★</span></div><p class="text-sm text-neutral-600 italic">"Pelayanan Ramah dan Harga Murah² 😂"</p></div>
+                <div class="bg-brand-50 rounded-2xl p-6 border border-brand-100"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-brand-200 rounded-full flex items-center justify-center font-bold text-brand-700">A</div><div><p class="font-semibold text-sm">Pelanggan</p><p class="text-xs text-neutral-400">Pelanggan</p></div></div><div class="flex gap-0.5 mb-2"><span class="text-yellow-400 text-sm">★★★★☆</span></div><p class="text-sm text-neutral-600 italic">"Bakwan nya enak, lengkap sembakonya"</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-gray-50 border-t border-neutral-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+            <div class="text-center mb-12"><h2 class="text-2xl sm:text-3xl font-bold text-neutral-900 mb-3">Kenapa Belanja di Warung Amma Ika?</h2><p class="text-neutral-500 max-w-lg mx-auto">Warung kelontong terpercaya di Lero, Suppa, Pinrang</p></div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="text-center p-6 rounded-2xl bg-white border border-neutral-100 hover:border-brand-200 transition-colors group"><div class="w-14 h-14 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-brand-200 transition-colors"><span class="text-2xl">🦀</span></div><h3 class="font-semibold mb-2">Kerupuk Bakwan Ter-enak</h3><p class="text-sm text-neutral-500">Andalan warung, paling direkomendasikan pelanggan!</p></div>
+                <div class="text-center p-6 rounded-2xl bg-white border border-neutral-100 hover:border-brand-200 transition-colors group"><div class="w-14 h-14 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-brand-200 transition-colors"><i data-lucide="badge-percent" class="w-6 h-6 text-brand-600"></i></div><h3 class="font-semibold mb-2">Harga Murah</h3><p class="text-sm text-neutral-500">Harga bersahabat untuk kebutuhan harian Anda</p></div>
+                <div class="text-center p-6 rounded-2xl bg-white border border-neutral-100 hover:border-brand-200 transition-colors group"><div class="w-14 h-14 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-brand-200 transition-colors"><i data-lucide="heart-handshake" class="w-6 h-6 text-brand-600"></i></div><h3 class="font-semibold mb-2">Pelayanan Ramah</h3><p class="text-sm text-neutral-500">Dilayani dengan senyum dan ramah tamah</p></div>
+                <div class="text-center p-6 rounded-2xl bg-white border border-neutral-100 hover:border-brand-200 transition-colors group"><div class="w-14 h-14 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-brand-200 transition-colors"><i data-lucide="package-check" class="w-6 h-6 text-brand-600"></i></div><h3 class="font-semibold mb-2">Sembako Lengkap</h3><p class="text-sm text-neutral-500">Kebutuhan dapur sehari-hari tersedia lengkap</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tentang" class="bg-brand-700 text-white relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10"><div class="absolute top-0 left-1/4 w-60 h-60 bg-yellow-300 rounded-full blur-3xl"></div><div class="absolute bottom-0 right-1/4 w-40 h-40 bg-white rounded-full blur-3xl"></div></div>
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 py-16">
+            <div class="grid md:grid-cols-2 gap-10 items-center">
+                <div>
+                    <span class="inline-block text-brand-300 text-sm font-medium mb-3">Tentang Kami</span>
+                    <h2 class="text-3xl sm:text-4xl font-bold mb-6">Warung Amma Ika</h2>
+                    <p class="text-brand-200 leading-relaxed mb-4">Warung Amma Ika adalah toko kelontong yang berlokasi di Lero, Kecamatan Suppa, Kabupaten Pinrang, Sulawesi Selatan. Kami menyediakan berbagai kebutuhan pokok dan kelontong harian untuk masyarakat sekitar.</p>
+                    <p class="text-brand-200 leading-relaxed mb-6">Dari beras, minyak, gula, mie instan, bumbu dapur, hingga <strong class="text-white">kerupuk bakwan andalan</strong> yang jadi favorit warga Lero — semuanya tersedia dengan harga terjangkau dan pelayanan yang ramah!</p>
+                    <div class="grid grid-cols-3 gap-4"><div class="bg-white/10 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-white">100+</p><p class="text-xs text-brand-300 mt-1">Produk</p></div><div class="bg-white/10 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-white">4.7</p><p class="text-xs text-brand-300 mt-1">Rating</p></div><div class="bg-white/10 rounded-xl p-4 text-center"><p class="text-2xl font-bold text-white">🦀</p><p class="text-xs text-brand-300 mt-1">Bakwan Ter-enak</p></div></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <img src="https://picsum.photos/seed/warung-lero-1/400/500" alt="Warung Amma Ika" class="rounded-2xl w-full h-64 object-cover">
+                    <img src="https://picsum.photos/seed/warung-lero-2/400/500" alt="Produk Kelontong" class="rounded-2xl w-full h-64 object-cover mt-8">
+                    <img src="https://picsum.photos/seed/warung-lero-3/400/500" alt="Kerupuk Bakwan" class="rounded-2xl w-full h-64 object-cover -mt-4">
+                    <img src="https://picsum.photos/seed/warung-lero-4/400/500" alt="Belanja Sembako" class="rounded-2xl w-full h-64 object-cover mt-4">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="lokasi" class="bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+            <div class="text-center mb-10"><h2 class="text-2xl sm:text-3xl font-bold text-neutral-900 mb-3">Lokasi & Jam Buka</h2><p class="text-neutral-500">Kunjungi warung kami di Lero, Suppa, Pinrang</p></div>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="rounded-2xl overflow-hidden h-80 bg-gray-200 border border-neutral-200"><iframe src="https://maps.google.com/maps?q=Warung+Amma+Ika,+Lero,+Suppa,+Pinrang,+Sulawesi+Selatan&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" class="w-full h-full"></iframe></div>
+                <div class="space-y-6">
+                    <div class="flex gap-4"><div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0"><i data-lucide="map-pin" class="w-5 h-5 text-brand-600"></i></div><div><h3 class="font-semibold mb-1">Alamat</h3><p class="text-neutral-500 text-sm">Lero, Kec. Suppa, Kabupaten Pinrang, Sulawesi Selatan 91273</p></div></div>
+                    <div class="flex gap-4"><div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0"><i data-lucide="clock" class="w-5 h-5 text-brand-600"></i></div><div><h3 class="font-semibold mb-1">Jam Buka</h3><div class="text-sm text-neutral-500"><div class="flex justify-between gap-8"><span>Setiap Hari</span><span class="font-medium text-neutral-700">Buka s/d 22.00</span></div><p class="text-xs text-neutral-400 mt-1">*Bisa berbeda saat libur nasional</p></div></div></div>
+                    <div class="flex gap-4"><div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0"><i data-lucide="phone" class="w-5 h-5 text-brand-600"></i></div><div><h3 class="font-semibold mb-1">WhatsApp</h3><p class="text-neutral-500 text-sm">0852-9858-5059</p></div></div>
+                    <div class="flex gap-4"><div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0"><i data-lucide="star" class="w-5 h-5 text-brand-600"></i></div><div><h3 class="font-semibold mb-1">Rating</h3><div class="flex items-center gap-2"><span class="text-yellow-400">★★★★★</span><span class="text-sm font-bold">4.7</span><span class="text-xs text-neutral-400">(3 ulasan)</span></div></div></div>
+                    <div class="flex gap-4"><div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0"><i data-lucide="truck" class="w-5 h-5 text-brand-600"></i></div><div><h3 class="font-semibold mb-1">Layanan Antar</h3><p class="text-neutral-500 text-sm">Tersedia untuk area Lero & sekitarnya</p></div></div>
+                    <a href="https://wa.me/6285298585059" target="_blank" class="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-md shadow-brand-200"><i data-lucide="message-circle" class="w-5 h-5"></i>Chat via WhatsApp</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-neutral-900 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div><div class="flex items-center gap-2.5 mb-4"><div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center"><span class="text-lg">🏪</span></div><div><h3 class="font-bold text-lg">Warung Amma Ika</h3><p class="text-[10px] text-neutral-400 tracking-wider">TOKO KELONTONG • PINRANG</p></div></div><p class="text-sm text-neutral-400 leading-relaxed">Toko kelontong di Lero, Suppa, Pinrang. Menyediakan kebutuhan harian dengan harga terjangkau dan kerupuk bakwan ter-enak!</p></div>
+                <div><h4 class="font-semibold mb-4">Kategori</h4><ul class="space-y-2 text-sm text-neutral-400"><li><a href="#" onclick="filterCategory('unggulan');document.getElementById('produk').scrollIntoView({behavior:'smooth'})" class="hover:text-white transition-colors">🦀 Produk Unggulan</a></li><li><a href="#" onclick="filterCategory('sembako');document.getElementById('produk').scrollIntoView({behavior:'smooth'})" class="hover:text-white transition-colors">Sembako</a></li><li><a href="#" onclick="filterCategory('mie-instan');document.getElementById('produk').scrollIntoView({behavior:'smooth'})" class="hover:text-white transition-colors">Mie Instan</a></li><li><a href="#" onclick="filterCategory('minuman');document.getElementById('produk').scrollIntoView({behavior:'smooth'})" class="hover:text-white transition-colors">Minuman</a></li></ul></div>
+                <div><h4 class="font-semibold mb-4">Informasi</h4><ul class="space-y-2 text-sm text-neutral-400"><li><a href="#tentang" class="hover:text-white transition-colors">Tentang Kami</a></li><li><a href="#lokasi" class="hover:text-white transition-colors">Lokasi & Jam Buka</a></li><li><a href="https://wa.me/6285298585059" target="_blank" class="hover:text-white transition-colors">Pesan via WhatsApp</a></li></ul></div>
+                <div><h4 class="font-semibold mb-4">Hubungi Kami</h4><ul class="space-y-2 text-sm text-neutral-400"><li class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4"></i>0852-9858-5059</li><li class="flex items-center gap-2"><i data-lucide="message-circle" class="w-4 h-4"></i>WhatsApp</li><li class="flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4"></i>Lero, Suppa, Pinrang</li></ul><div class="flex gap-3 mt-4"><a href="https://wa.me/6285298585059" class="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-brand-500 transition-colors"><i data-lucide="message-circle" class="w-4 h-4"></i></a></div></div>
+            </div>
+            <div class="border-t border-neutral-800 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3"><p class="text-xs text-neutral-500">&copy; 2025 Warung Amma Ika — Lero, Suppa, Pinrang</p><p class="text-xs text-neutral-600">Belanja mudah, harga murah, pelayanan ramah 🧡</p></div>
+        </div>
+    </footer>
+</main>
+
+<a href="https://wa.me/6285298585059" target="_blank" class="fixed bottom-6 left-6 z-50 w-14 h-14 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-110 group"><i data-lucide="message-circle" class="w-6 h-6 text-white"></i><span class="absolute left-16 bg-white text-neutral-900 text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Chat WhatsApp</span></a>
+
+<button onclick="window.scrollTo({top:0,behavior:'smooth'})" id="backToTop" class="fixed bottom-6 right-6 z-50 w-12 h-12 bg-brand-500 hover:bg-brand-600 rounded-full flex items-center justify-center shadow-lg transition-all opacity-0 pointer-events-none"><i data-lucide="chevron-up" class="w-5 h-5 text-white"></i></button>
+
+<script src="script.js"></script>
+</body>
+</html>

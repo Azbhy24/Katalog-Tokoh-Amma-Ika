@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Settings rules
+    match /settings/config {
+      // Everyone can read settings to see if store is open
+      allow read: if true;
+      
+      // Only authenticated users can update (in this prototype, we'll keep it simple, 
+      // but ideally we'd have a specific admin UID check if we had multiple login types)
+      allow write: if isSignedIn();
+      
+      function isValidSettings(data) {
+        return data.keys().hasAll(['isOpen', 'minOrder', 'contacts', 'adminPin']) 
+          && data.keys().size() == 4
+          && data.isOpen is bool
+          && data.minOrder is int
+          && data.contacts is map
+          && data.adminPin is string;
+      }
+    }
+
+    // Product rules
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+      
+      function isValidProduct(data) {
+        return data.keys().hasAll(['id', 'name', 'price', 'unit', 'category', 'image', 'inStock'])
+          && data.id is string
+          && data.name is string
+          && data.price is int
+          && data.unit is string
+          && data.category is string
+          && data.image is string
+          && data.inStock is bool;
+      }
+    }
+
+    // Order rules
+    match /orders/{orderId} {
+      allow get: if true; // Any customer can track their own order if they hold the direct link / ID
+      allow list: if isSignedIn(); // Only admins can list/query all orders
+      allow create: if true; // Customers can create orders
+      allow update, delete: if isSignedIn();
+    }
+  }
+}

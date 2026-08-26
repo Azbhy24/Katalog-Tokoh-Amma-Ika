@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-warung-brand: #FF6B00; /* Vibrant Brand Orange */
+  --color-warung-brand-light: #FFF4ED;
+  --color-warung-green: #10B981;
+  --color-warung-ink: #0F172A;
+  --color-warung-muted: #64748B;
+  --color-warung-surface: #F8FAFC;
+  --color-warung-border: #F1F5F9;
+
+  /* Brand color scales to match with App references */
+  --color-brand-50: #FFF5ED;
+  --color-brand-100: #FFE6D5;
+  --color-brand-150: #FFD4BA;
+  --color-brand-200: #FFAF80;
+  --color-brand-300: #FF8C4B;
+  --color-brand-400: #FF752B;
+  --color-brand-451: #FF752B;
+  --color-brand-500: #FF6B00;
+  --color-brand-600: #E65100;
+  --color-brand-700: #C63F00;
+  --color-brand-800: #9C2F00;
+  --color-brand-900: #702000;
+}
+
+:root {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-premium {
+  box-shadow: var(--shadow-premium);
+}
+
+.card-hover {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-premium);
+  transform: translateY(-4px);
+}

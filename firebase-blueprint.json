@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "StoreSettings": {
+      "title": "Store Settings",
+      "description": "Global settings for Warung Amma Ika.",
+      "type": "object",
+      "properties": {
+        "isOpen": { "type": "boolean" },
+        "minOrder": { "type": "integer" },
+        "contacts": {
+          "type": "object",
+          "properties": {
+            "OWNER": { "type": "string" },
+            "DULLAH": { "type": "string" },
+            "LEMAN": { "type": "string" }
+          }
+        },
+        "adminPin": { "type": "string" }
+      },
+      "required": ["isOpen", "minOrder", "contacts", "adminPin"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A sembako product sold in the store.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "integer" },
+        "unit": { "type": "string" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "inStock": { "type": "boolean" },
+        "featured": { "type": "boolean" }
+      },
+      "required": ["id", "name", "price", "unit", "category", "image", "inStock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "An order placed by a customer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "integer" },
+        "courier": { "type": "string" },
+        "deliveryTime": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerName", "items", "total", "courier", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/settings/config": {
+      "schema": "StoreSettings",
+      "description": "Singleton configuration for the store."
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "List of products available in the store."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Orders received from customers."
+    }
+  }
+}
