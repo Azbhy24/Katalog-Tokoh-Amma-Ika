@@ -1,17 +1,45 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-warung-brand: #FF6B00; /* Vibrant Brand Orange */
+  --color-warung-brand: #FF8C00; /* Vibrant Stitch Warm Primary */
   --color-warung-brand-light: #FFF4ED;
-  --color-warung-green: #10B981;
-  --color-warung-ink: #0F172A;
-  --color-warung-muted: #64748B;
-  --color-warung-surface: #F8FAFC;
-  --color-warung-border: #F1F5F9;
+  --color-warung-green: #006C4A; /* Stitch Secondary Emerald */
+  --color-warung-ink: #191C1D;
+  --color-warung-muted: #564334;
+  --color-warung-surface: #F8F9FA;
+  --color-warung-border: #E7E8E9;
+
+  /* Stitch Design System Color Palette */
+  --color-primary: #904D00;
+  --color-primary-container: #FF8C00;
+  --color-on-primary: #FFFFFF;
+  --color-on-primary-container: #623200;
+  --color-primary-fixed: #FFDCC3;
+  --color-inverse-primary: #FFB77D;
+
+  --color-secondary: #006C4A;
+  --color-secondary-container: #82F5C1;
+  --color-on-secondary: #FFFFFF;
+  --color-on-secondary-container: #00714E;
+
+  --color-surface: #F8F9FA;
+  --color-surface-bright: #F8F9FA;
+  --color-surface-dim: #D9DADB;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #F3F4F5;
+  --color-surface-container: #EDEEEF;
+  --color-surface-container-high: #E7E8E9;
+  --color-surface-container-highest: #E1E3E4;
+  --color-surface-variant: #E1E3E4;
+
+  --color-on-surface: #191C1D;
+  --color-on-surface-variant: #564334;
+  --color-outline: #897362;
+  --color-outline-variant: #DDC1AE;
 
   /* Brand color scales to match with App references */
   --color-brand-50: #FFF5ED;
@@ -21,39 +49,45 @@
   --color-brand-300: #FF8C4B;
   --color-brand-400: #FF752B;
   --color-brand-451: #FF752B;
-  --color-brand-500: #FF6B00;
+  --color-brand-500: #FF8C00;
   --color-brand-600: #E65100;
-  --color-brand-700: #C63F00;
-  --color-brand-800: #9C2F00;
-  --color-brand-900: #702000;
+  --color-brand-700: #904D00;
+  --color-brand-800: #702000;
+  --color-brand-900: #2F1500;
 }
 
 :root {
-  background-color: #F8FAFC;
-  color: #0F172A;
+  background-color: #F8F9FA;
+  color: #191C1D;
 }
 
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  background-color: #F8FAFC;
-  color: #0F172A;
+  background-color: #F8F9FA;
+  color: #191C1D;
 }
 
-.no-scrollbar::-webkit-scrollbar {
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
-.no-scrollbar {
+.no-scrollbar,
+.hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 80px);
+}
+
 .shadow-soft {
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .shadow-premium {
-  box-shadow: var(--shadow-premium);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 .card-hover {
@@ -63,6 +97,6 @@ body {
 }
 
 .card-hover:hover {
-  box-shadow: var(--shadow-premium);
-  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
 }

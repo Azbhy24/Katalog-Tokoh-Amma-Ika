@@ -36,7 +36,8 @@ import {
   Check,
   Barcode,
   Camera,
-  Scan
+  Scan,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -817,134 +818,135 @@ export default function App() {
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans selection:bg-warung-brand/20 flex flex-col">
       
-      {/* 1. Global Responsive Premium Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          
-          {/* Logo Brand Segment */}
-          <div onClick={handleHeaderClick} className="flex items-center gap-3 cursor-pointer select-none shrink-0">
-            <div className="w-11 h-11 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shrink-0 shadow-md">
-              <span className="text-xl">🏪</span>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-extrabold text-neutral-900 tracking-tight leading-none uppercase">
-                Warung <span className="text-warung-brand">Amma Ika</span>
-              </h1>
-              <p className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase mt-1">
-                Lero • Pinrang
-              </p>
-            </div>
-          </div>
-
-          {/* QR Dine-In / Takeaway Badge */}
-          <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 shadow-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-neutral-800 shrink-0 select-none">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-100 flex items-center justify-center text-xs sm:text-sm shrink-0">
-              {diningMode === 'dinein' ? '🍽️' : '🥡'}
-            </div>
-            <div className="text-left">
-              <div className="text-[8px] font-bold text-neutral-400 uppercase tracking-widest leading-none">ORDER MODE</div>
-              <div className="text-[11px] sm:text-xs font-extrabold text-neutral-800 tracking-tight leading-normal mt-0.5">
-                {diningMode === 'dinein' ? `Dine-In • Meja ${tableNumber}` : 'Takeaway / Ambil'}
+      {/* 1. Global Header - Stitch Design System */}
+      <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-outline-variant/60 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-3">
+            {/* Logo Brand Segment */}
+            <div onClick={handleHeaderClick} className="flex items-center gap-2.5 cursor-pointer select-none shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-primary-container/20 border border-primary-container/40 flex items-center justify-center text-primary shadow-xs">
+                <Store className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-primary tracking-tight leading-none">
+                  Warung Amma Ika
+                </h1>
+                <p className="text-[10px] font-medium text-on-surface-variant tracking-wider mt-0.5 sm:hidden">
+                  Lero, Pinrang
+                </p>
               </div>
             </div>
-            <button 
-              onClick={() => {
-                showConfirm(
-                  "Pilih Layanan",
-                  "Makan di Meja (Dine-In) atau Bawa Pulang (Takeaway)? Klik OK untuk Makan di Meja, Batal untuk Bawa Pulang.",
-                  () => {
-                    setDiningMode('dinein');
-                    showPrompt(
-                      "Nomor Meja",
-                      "Masukkan nomor meja baru Anda:",
-                      tableNumber,
-                      (val) => {
-                        if (val.trim()) setTableNumber(val.trim());
+
+            {/* Location Badge (Stitch) */}
+            <div className="hidden sm:flex items-center gap-1.5 text-primary bg-surface-container-lowest px-3 py-1.5 rounded-full border border-outline-variant/60 shadow-xs">
+              <MapPin className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold text-xs text-primary">Lero, Pinrang</span>
+            </div>
+
+            {/* QR Dine-In / Takeaway Badge & Controls */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <div className="hidden lg:flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 shadow-xs px-2.5 py-1.5 rounded-xl text-on-surface select-none">
+                <span className="text-xs">{diningMode === 'dinein' ? '🍽️' : '🥡'}</span>
+                <div className="text-left">
+                  <div className="text-[8px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">ORDER</div>
+                  <div className="text-[11px] font-bold text-on-surface leading-tight mt-0.5">
+                    {diningMode === 'dinein' ? `Meja ${tableNumber}` : 'Takeaway'}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    showConfirm(
+                      "Pilih Layanan",
+                      "Makan di Meja (Dine-In) atau Bawa Pulang (Takeaway)?",
+                      () => {
+                        setDiningMode('dinein');
+                        showPrompt("Nomor Meja", "Masukkan nomor meja baru:", tableNumber, (val) => {
+                          if (val.trim()) setTableNumber(val.trim());
+                        });
                       },
-                      "Nomor Meja"
+                      () => {
+                        setDiningMode('takeaway');
+                        setSelectedCourier('none');
+                      }
                     );
-                  },
-                  () => {
-                    setDiningMode('takeaway');
-                    setSelectedCourier('none');
-                  }
-                );
-              }}
-              className="ml-1 sm:ml-2 text-[8px] sm:text-[9px] bg-white font-extrabold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-neutral-200 text-orange-655 hover:bg-orange-50 transition-all uppercase cursor-pointer"
-            >
-              Ubah
-            </button>
+                  }}
+                  className="ml-1 text-[9px] bg-surface-container-low px-1.5 py-0.5 rounded text-primary font-bold hover:bg-surface-variant transition-all uppercase cursor-pointer"
+                >
+                  Ubah
+                </button>
+              </div>
+
+              <button 
+                onClick={() => setCurrentView('pos')}
+                className={`px-3 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer flex items-center gap-1.5 ${
+                  currentView === 'pos' 
+                    ? 'bg-secondary text-white border-secondary shadow-sm' 
+                    : 'bg-surface-container-lowest text-on-surface border-outline-variant/60 hover:bg-surface-container-low'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span className="hidden sm:inline">Kasir POS</span>
+              </button>
+
+              <button 
+                onClick={() => setCurrentView('home')}
+                className={`hidden md:block px-3.5 py-2 text-xs font-bold rounded-xl transition-all ${currentView === 'home' ? 'text-primary bg-primary-container/25' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                Katalog
+              </button>
+              <button 
+                onClick={() => setCurrentView('bundles')}
+                className={`hidden md:block px-3.5 py-2 text-xs font-bold rounded-xl transition-all ${currentView === 'bundles' ? 'text-primary bg-primary-container/25' : 'text-on-surface-variant hover:text-on-surface'}`}
+              >
+                Paket Hemat
+              </button>
+              
+              <button 
+                onClick={() => setCurrentView('admin')}
+                className={`p-2 rounded-xl transition-all border cursor-pointer ${
+                  currentView === 'admin' 
+                    ? 'bg-primary-container text-on-primary-container border-primary-container shadow-xs' 
+                    : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/60 hover:bg-surface-container-low'
+                }`}
+                title="Papan Kontrol Admin"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
+              {/* Shopping Cart Trigger */}
+              <button
+                onClick={() => cartCount > 0 ? setCurrentView('checkout') : showAlert('Keranjang Kosong', 'Keranjang belanja Anda kosong. Silakan pilih menu di Etalase terlebih dahulu.')}
+                className={`relative p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer border ${
+                  cartCount > 0 
+                    ? 'bg-primary-container text-on-primary-container border-primary-container shadow-xs' 
+                    : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/60'
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-surface">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Quick Search Segment (Middle bar) */}
-          <div className="flex-1 max-w-md relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-neutral-400" />
-            </span>
+          {/* Quick Search Segment - Stitch Design */}
+          <div className="w-full relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-on-surface-variant/60">
+              <Search className="w-4 h-4" />
+            </div>
             <input
               type="text"
-              placeholder="Cari sembako murah, minyak, bakwan..."
+              placeholder="Cari sembako murah, minyak, beras, mie..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                if (currentView !== 'shop' && currentView !== 'home') setCurrentView('shop');
+                if (currentView !== 'shop' && currentView !== 'home') setCurrentView('home');
               }}
-              className="w-full pl-10 pr-4 py-2.5 bg-neutral-100 border border-transparent rounded-xl text-sm focus:outline-none focus:bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all text-neutral-800"
+              className="block w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-xl text-xs sm:text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-xs"
             />
-          </div>
-
-            {/* Quick Navigation Controls */}
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-              <button 
-                onClick={() => setCurrentView('pos')}
-                className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all border cursor-pointer ${
-                  currentView === 'pos' 
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20' 
-                    : 'text-slate-700 border-slate-200 hover:text-emerald-700 hover:bg-emerald-50 bg-white shadow-2xs'
-                }`}
-              >
-                Kasir POS ⚡
-              </button>
-            <button 
-              onClick={() => setCurrentView('home')}
-              className={`hidden md:block px-4 py-2 text-sm font-semibold rounded-xl transition-all ${currentView === 'home' ? 'text-warung-brand bg-warung-brand-light' : 'text-neutral-500 hover:text-neutral-800'}`}
-            >
-              Beranda
-            </button>
-            <button 
-              onClick={() => setCurrentView('shop')}
-              className={`hidden md:block px-4 py-2 text-sm font-semibold rounded-xl transition-all ${currentView === 'shop' ? 'text-warung-brand bg-warung-brand-light' : 'text-neutral-500 hover:text-neutral-800'}`}
-            >
-              Belanja Sembako
-            </button>
-            <button 
-              onClick={() => setCurrentView('bundles')}
-              className={`hidden md:block px-4 py-2 text-sm font-semibold rounded-xl transition-all ${currentView === 'bundles' ? 'text-warung-brand bg-warung-brand-light' : 'text-neutral-500 hover:text-neutral-800'}`}
-            >
-              Paket Hemat
-            </button>
-            
-            {/* Split View Portal indicator */}
-            <button 
-              onClick={() => setCurrentView('admin')}
-              className="p-2.5 text-neutral-500 hover:text-neutral-800 rounded-xl hover:bg-neutral-100 transition-all"
-              title="Papan Kontrol Admin"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-
-            {/* Shopping Cart Trigger */}
-            <button
-              onClick={() => cartCount > 0 ? setCurrentView('checkout') : showAlert('Keranjang Kosong', 'Keranjang belanja Anda kosong. Silakan pilih menu di Etalase terlebih dahulu.')}
-              className={`relative p-2.5 rounded-xl transition-all flex items-center justify-center ${cartCount > 0 ? 'bg-orange-600 text-white shadow-md' : 'bg-neutral-100 text-neutral-400'}`}
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-                  {cartCount}
-                </span>
-              )}
-            </button>
           </div>
         </div>
       </header>
@@ -1346,261 +1348,140 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* HOME VIEW: Replicated premium target landing */}
+          {/* HOME VIEW: Stitch Design System Catalog */}
           {currentView === 'home' && (
             <motion.div 
               key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="space-y-16 py-8"
+              className="space-y-6 py-4"
             >
-              {/* Modern Hero Bento Section */}
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="bg-gradient-to-br from-brand-600 via-brand-500 to-amber-500 rounded-3xl p-8 sm:p-12 lg:p-16 text-white shadow-xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-12">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
-                  
-                  {/* Left Content Column */}
-                  <div className="flex-1 space-y-6 max-w-2xl relative z-10 text-center lg:text-left">
-                    {/* Live indicator & Google Rating details */}
-                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                      <div className="inline-flex items-center gap-2 bg-black/25 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-xs font-bold uppercase tracking-wider">
-                        <span className={`w-2.5 h-2.5 rounded-full ${storeOpen ? 'bg-green-400' : 'bg-red-500'} animate-pulse`} />
-                        {storeOpen ? 'Buka Sekarang • Lero' : 'Sedang Tutup • Lero'}
-                      </div>
-                      <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold">
-                        <span className="text-yellow-300">★★★★★</span>
-                        <span>4.7 (Google Maps)</span>
-                      </div>
-                    </div>
-
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black italic tracking-tighter leading-none uppercase">
-                      Warung Kelontong <br />
-                      <span className="text-yellow-300 underline decoration-yellow-400 decoration-wavy decoration-3">Amma Ika</span>
-                    </h1>
-                    
-                    <p className="text-neutral-100 text-sm sm:text-base font-semibold leading-relaxed max-w-xl mx-auto lg:mx-0">
-                      Toko sembako keluarga terpercaya di Lero, Suppa, Pinrang. Kami menyediakan beras super, telur segar, mie harian, hingga minuman dingin ter-murah dengan pelayanan ramah khas Sulawesi Selatan. Uniknya lagi: krupuk bakwan kami ter-enak di seantero Lero!
-                    </p>
-
-                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4">
-                      <button 
-                        onClick={scrollToProducts}
-                        className="bg-white hover:bg-neutral-100 text-brand-600 px-8 py-4 rounded-xl font-bold tracking-wider text-xs uppercase shadow-lg transition-all active:scale-95"
-                      >
-                        Mulai Belanja 🛍️
-                      </button>
-                      <a 
-                        href={`https://wa.me/${contacts.OWNER}?text=Halo%20Amma%20Ika%20saya%20mau%20tanya%20stok%20barang`}
-                        target="_blank" referrerPolicy="no-referrer"
-                        className="bg-brand-700 hover:bg-brand-800 text-white border border-brand-500 px-8 py-4 rounded-xl font-bold tracking-wider text-xs uppercase flex items-center justify-center gap-2 transition-all active:scale-95"
-                      >
-                        <Phone className="w-4 h-4 text-green-400" /> Tanya Stok Via WA
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Right Graphics Bento Column (3D styling layout) */}
-                  <div className="hidden lg:flex flex-col items-center justify-center gap-6 relative z-10 w-[380px] shrink-0">
-                    <div className="bg-white text-neutral-900 rounded-2xl p-6 shadow-2xl space-y-4 border border-brand-100 relative rotate-2 max-w-full">
-                      <div className="absolute -top-3 -right-3 w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-md animate-bounce">
-                        <span className="text-lg">🔥</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 font-bold border border-orange-100 shrink-0">
-                          <span>🏪</span>
-                        </div>
-                        <div>
-                          <h4 className="font-extrabold text-sm text-neutral-900 leading-none">Warung Amma Ika</h4>
-                          <span className="text-xs text-neutral-400 font-semibold">Toko harian terpercaya Anda</span>
-                        </div>
-                      </div>
-                      <p className="text-neutral-500 font-medium text-xs leading-relaxed">
-                        Layanan antar kilat oleh kurir *Leman* & *Dullah* untuk seputaran Kampung Lero & Pinrang.
-                      </p>
-                      <div className="h-0.5 bg-neutral-100" />
-                      <div className="flex items-center justify-between text-xs font-bold text-neutral-800">
-                        <span>Pilihan Kurir Aman</span>
-                        <span className="text-emerald-500 flex items-center gap-1">✓ Aktif</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-orange-850/30 text-white rounded-2xl p-4 shadow-lg border border-white/10 w-full flex items-center gap-4 -rotate-1">
-                      <span className="text-2xl">🦀</span>
-                      <div>
-                        <h4 className="font-bold text-xs text-yellow-300">Kerupuk Bakwan Juara</h4>
-                        <p className="text-[10px] text-white/80">Sangat renyah, lezat dan bikin ketagihan!</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Ticking Countdown Hot Promo Banner Section */}
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="bg-white rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row items-center justify-between gap-6 border-2 border-dashed border-brand-300 shadow-soft">
-                  <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                    <span className="text-4xl">🦀</span>
-                    <div className="space-y-1">
-                      <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase">
-                        HOT FLASH SALE!
-                      </span>
-                      <h3 className="text-lg sm:text-xl font-extrabold text-neutral-900 uppercase tracking-tight">
-                        KERUPUK BAKWAN TER-ENAK LERO DAPAT DISKON!
-                      </h3>
-                      <p className="text-xs font-medium text-neutral-500">
-                        Ambil paket isi 5 hanya <span className="font-black text-brand-600">Rp 10.000</span>. Sangat gurih, cocok dimakan hangat!
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Countdown display */}
-                  <div className="flex items-center gap-3 bg-brand-50 p-3 sm:p-4 rounded-xl border border-brand-100 shrink-0">
-                    <span className="text-xs font-bold text-brand-700 uppercase tracking-wider hidden sm:inline">Tawaran Berakhir:</span>
-                    <div className="flex items-center gap-1">
-                      <div className="bg-brand-600 text-white font-extrabold text-sm px-2.5 py-1.5 rounded-lg shadow-sm w-9 text-center">
-                        {String(countdown.hours).padStart(2, '0')}
-                      </div>
-                      <span className="font-bold text-brand-600">:</span>
-                      <div className="bg-brand-600 text-white font-extrabold text-sm px-2.5 py-1.5 rounded-lg shadow-sm w-9 text-center">
-                        {String(countdown.minutes).padStart(2, '0')}
-                      </div>
-                      <span className="font-bold text-brand-600">:</span>
-                      <div className="bg-brand-600 text-white font-extrabold text-sm px-2.5 py-1.5 rounded-lg shadow-sm w-9 text-center">
-                        {String(countdown.seconds).padStart(2, '0')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Bento Core Features Section */}
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-                <div className="text-center max-w-xl mx-auto space-y-2">
-                  <h2 className="text-2xl font-black uppercase tracking-tight text-neutral-900 leading-none">
-                    Kenapa Belanja di Amma Ika?
-                  </h2>
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Kualitas Terbaik Untuk Dapur Anda
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { title: "Krupuk Bakwan Legendaris", desc: "Gurih, renyah, ter-enak khas Lero Pinrang yang diakui warga.", emoji: "🦀" },
-                    { title: "Harga Sangat Bersahabat", desc: "Harga bersaing, murah harian meringankan belanja dapur Amma.", emoji: "💰" },
-                    { title: "Layanan Antar Kilat", desc: "Diantar langsung oleh Kurir Dullah & Leman dengan aman se-Lero.", emoji: "⚡" },
-                    { title: "Stok Sembako Komplit", desc: "Sedia beras, telur, minyak goreng, mi instan, sabun lengkap harian.", emoji: "📦" }
-                  ].map((feat, idx) => (
-                    <div key={idx} className="bg-white p-4 rounded-xl border border-neutral-200 hover:border-brand-300 transition-all shadow-sm group">
-                      <div className="w-9 h-9 bg-neutral-100 group-hover:bg-brand-50 rounded-lg flex items-center justify-center text-base mb-2.5 transition-colors">
-                        <span>{feat.emoji}</span>
-                      </div>
-                      <h4 className="font-bold text-xs text-neutral-900 leading-tight mb-1 uppercase tracking-tight">{feat.title}</h4>
-                      <p className="text-[11px] text-neutral-500 font-medium leading-normal">{feat.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Active Products Shop Interface Section */}
-              <section id="shop-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pt-6">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-neutral-200 pb-5">
-                  <div className="space-y-1 text-center sm:text-left">
-                    <h2 className="text-2xl font-black uppercase tracking-tight text-neutral-900 leading-none">
-                      Etalase Belanja
-                    </h2>
-                    <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
-                      Urutkan berdasarkan kategori kebutuhan harian anda
-                    </p>
-                  </div>
-
-                  {/* Filter / Sort indicator bar */}
-                  <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                    Sedia total {products.length} produk di website
-                  </div>
-                </div>
-
-                {/* Grid Category selector with Lucide Icons */}
-                <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-3">
+              {/* Category Navigation (Stitch Style) */}
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex overflow-x-auto gap-2.5 hide-scrollbar pb-2 pt-1">
                   {categories.map(cat => {
-                    // Custom category icon representation helper
-                    let emoji = "📦";
-                    if (cat === "Semua") emoji = "🏪";
-                    if (cat === "Unggulan" || cat === "Special") emoji = "🦀";
-                    if (cat === "Sembako") emoji = "🌾";
-                    if (cat === "Mie Instan") emoji = "🍜";
-                    if (cat === "Minuman") emoji = "🥤";
-                    if (cat === "Bumbu") emoji = "🌶️";
-                    if (cat === "Kebutuhan Rumah" || cat === "Kebersihan") emoji = "🧼";
-
+                    const active = selectedCategory === cat;
                     return (
                       <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold uppercase shrink-0 transition-all border ${
-                          selectedCategory === cat 
-                            ? 'bg-brand-600 text-white border-brand-600 shadow-md scale-102' 
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-brand-400 hover:text-brand-600'
+                        className={`whitespace-nowrap px-4 py-2 rounded-full font-semibold text-xs sm:text-sm transition-all cursor-pointer border ${
+                          active
+                            ? 'bg-primary-container text-on-primary-container border-transparent shadow-xs font-bold scale-102'
+                            : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/60 hover:bg-surface-variant'
                         }`}
                       >
-                        <span>{emoji}</span>
                         {cat}
                       </button>
                     );
                   })}
                 </div>
+              </div>
 
-                {/* Shop Product Grid List */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+              {/* Hero / Promo Banner (Stitch Style) */}
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden shadow-sm flex items-center p-6 bg-gradient-to-r from-primary-container via-[#ffa733] to-inverse-primary text-left">
+                  <div className="relative z-10 w-2/3 sm:w-1/2 space-y-2">
+                    <span className="inline-block px-2.5 py-1 bg-surface-container-lowest text-primary font-bold text-xs rounded-md shadow-xs">
+                      Promo
+                    </span>
+                    <h2 className="text-xl sm:text-2xl font-bold text-on-primary-container leading-tight">
+                      Unggulan Minggu Ini
+                    </h2>
+                    <p className="text-xs sm:text-sm text-on-primary-container/90 font-medium max-w-md hidden sm:block">
+                      Dapatkan bahan segar kualitas terbaik untuk keluarga Anda di Warung Amma Ika.
+                    </p>
+                    <div className="pt-1 flex items-center gap-2">
+                      <button
+                        onClick={scrollToProducts}
+                        className="bg-surface-container-lowest hover:bg-surface-container-low text-primary px-4 py-1.5 rounded-full text-xs font-bold shadow-xs transition-all cursor-pointer"
+                      >
+                        Belanja Sekarang →
+                      </button>
+                    </div>
+                  </div>
+                  <div className="absolute right-0 top-0 bottom-0 w-1/2 overflow-hidden">
+                    <img
+                      className="w-full h-full object-cover object-left opacity-95 mix-blend-multiply"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBoowsO18ql3rrTZUcrjiZCJtM8BclJaI3Ettf_OkKMIuWpS8INNOj8muWBM96Mtb8l78axwguI_1Wza56bvW6EQzf8DzYeuo1MIhDKIe9jfYvq2mrnt5rF4o_Twylz8_Scq_Yez3VYu2cCviS5cUiLUSY2TWO1QjvhLmIO4yf7mfDYN8pHQ6fKxyO190IKq2xLz_Q5I8ym9hkRDi7XqbsQBMRZ2q69wjVMasJaGU4zOWrSdtUb_7U5"
+                      alt="Promo Sembako Segar"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Grid Section (Stitch Style) */}
+              <section id="shop-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 pt-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg sm:text-xl font-bold text-on-surface">
+                    Katalog Produk
+                  </h3>
+                  <span className="text-xs font-medium text-on-surface-variant">
+                    {filteredProducts.length} Produk Tersedia
+                  </span>
+                </div>
+
+                {/* Grid of Product Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {filteredProducts.map(p => (
                     <div 
-                      key={p.id} 
-                      className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col justify-between hover:border-brand-400 hover:shadow-lg transition-all"
+                      key={p.id}
+                      className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between group hover:shadow-lg transition-all duration-200 text-left"
                     >
-                      {/* Product image container */}
-                      <div className="relative aspect-square overflow-hidden bg-neutral-100 border-b border-neutral-100 shrink-0">
+                      {/* Product Image Area */}
+                      <div className="h-32 sm:h-48 w-full relative bg-surface-container-low p-4 flex items-center justify-center">
                         <img 
                           src={p.image} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                           alt={p.name} 
                           referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
                         />
-                        {/* Sold out overlay */}
                         {!p.inStock && (
-                          <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center p-3">
-                            <span className="bg-red-650 text-white font-extrabold text-[9px] uppercase tracking-widest px-3 py-1 rounded-full shadow-sm">
+                          <div className="absolute inset-0 bg-white/70 backdrop-blur-2xs flex items-center justify-center p-2">
+                            <span className="bg-red-600 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
                               Stok Habis
                             </span>
                           </div>
                         )}
-                        {/* Dynamic category badge */}
+                        {p.barcode && (
+                          <span className="absolute bottom-2 left-2 bg-surface-container-lowest/90 border border-outline-variant/60 text-on-surface-variant font-mono text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1 shadow-2xs">
+                            <Barcode className="w-2.5 h-2.5 text-primary" /> {p.barcode}
+                          </span>
+                        )}
                         {p.category === 'Unggulan' && (
-                          <span className="absolute top-3 left-3 bg-brand-600 text-white font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md shadow-sm">
+                          <span className="absolute top-2 left-2 bg-primary-container text-on-primary-container font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs">
                             Unggulan 🌟
                           </span>
                         )}
                       </div>
 
-                      {/* Product copy detail description */}
-                      <div className="p-4 flex-1 flex flex-col justify-between gap-3 text-left">
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide leading-none">{p.category}</span>
-                          <h4 className="font-extrabold text-sm text-neutral-900 leading-tight line-clamp-2">{p.name}</h4>
-                          <p className="text-[10px] font-bold text-brand-600 leading-none">{p.unit}</p>
+                      {/* Product Details */}
+                      <div className="p-3 flex flex-col flex-grow justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">{p.category}</span>
+                            {p.unit && <span className="text-[10px] text-on-surface-variant font-medium">{p.unit}</span>}
+                          </div>
+                          <h4 className="font-semibold text-sm text-on-surface mb-1 line-clamp-2 leading-snug">
+                            {p.name}
+                          </h4>
                         </div>
 
-                        {/* Product Action layout footer */}
-                        <div className="flex items-center justify-between pt-2 border-t border-neutral-150 shrink-0">
-                          <span className="font-extrabold text-base italic text-brand-700 tracking-tight">{formatPrice(p.price)}</span>
+                        <div className="mt-3 pt-2 flex items-center justify-between border-t border-outline-variant/20">
+                          <span className="font-bold text-sm sm:text-base text-secondary">
+                            {formatPrice(p.price)}
+                          </span>
                           {p.inStock ? (
-                            <button 
+                            <button
                               onClick={() => addToCart(p)}
-                              className="bg-brand-600 hover:bg-brand-700 active:scale-90 text-white p-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center"
+                              className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:bg-primary hover:text-on-primary transition-all active:scale-90 shadow-xs cursor-pointer"
                               title="Tambah ke Keranjang"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
                           ) : (
-                            <button 
-                              disabled 
-                              className="bg-neutral-200 text-neutral-400 p-2.5 rounded-lg cursor-not-allowed"
+                            <button
+                              disabled
+                              className="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant/40 flex items-center justify-center cursor-not-allowed"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
@@ -1609,75 +1490,52 @@ export default function App() {
                       </div>
                     </div>
                   ))}
+                </div>
 
-                  {filteredProducts.length === 0 && (
-                    <div className="col-span-full bg-white p-12 text-center rounded-2xl border border-neutral-200 space-y-4 shadow-sm">
-                      <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto text-neutral-400">
-                        <Search className="w-7 h-7" />
-                      </div>
-                      <h4 className="font-bold text-base text-neutral-700 uppercase">Produk Tidak Ditemukan</h4>
-                      <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                        Cari dengan kata kunci lain atau periksa kategori yang dipilih. Semua produk harian kami berkualitas aman dan murah!
+                {filteredProducts.length === 0 && (
+                  <div className="bg-surface-container-lowest p-12 text-center rounded-2xl border border-outline-variant/50 space-y-3 shadow-xs">
+                    <div className="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center mx-auto text-on-surface-variant">
+                      <Search className="w-6 h-6" />
+                    </div>
+                    <h4 className="font-bold text-base text-on-surface">Produk Tidak Ditemukan</h4>
+                    <p className="text-xs text-on-surface-variant max-w-sm mx-auto">
+                      Cari dengan kata kunci lain atau periksa kategori yang dipilih.
+                    </p>
+                  </div>
+                )}
+              </section>
+
+              {/* Location & WhatsApp Contact (Stitch Style) */}
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 mb-4 text-left">
+                <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border border-outline-variant/60 flex flex-col md:flex-row items-center gap-6 justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary-container/20 flex items-center justify-center shrink-0 text-primary">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base sm:text-lg text-on-surface mb-1">Lokasi Kami</h3>
+                      <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                        Lero, Suppa, Pinrang. Silakan hubungi kami untuk pesanan dalam jumlah besar atau pertanyaan lainnya.
                       </p>
                     </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Real Customer Testimony reviews section */}
-              <section className="bg-brand-50 border-y border-brand-100 py-16">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-                  <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-black uppercase tracking-tight text-neutral-900 leading-none">
-                      Apa Kata Pelanggan Setia?
-                    </h2>
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-yellow-400 text-xl font-bold">★★★★★</span>
-                      <span className="text-base font-extrabold text-neutral-800">4.7</span>
-                      <span className="text-neutral-405 text-xs font-semibold uppercase tracking-wider">dari 3 ulasan Google Maps</span>
-                    </div>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                    {[
-                      { letter: "A", name: "Abdullah", words: "Sangat recommended! Kerupuk bakwannya paling mantap dan gurih se-Lero! Sembakonya lengkap dan selalu ready.", ago: "4 hari lalu" },
-                      { letter: "F", name: "Fatimah Azzahra", words: "Sembakonya sangat komplit untuk masak harian, harganya murah bersahabat, pelayanan Amma Ika super ramah dan asyik!", ago: "Seminggu lalu" },
-                      { letter: "L", name: "Leman", words: "Suka langganan delivery ke rumah, pengantarannya super cepat dibantu Kurir Dullah. Mantap melayani warga Lero!", ago: "2 minggu lalu" }
-                    ].map((rc, idx) => (
-                      <div key={idx} className="bg-white p-6 rounded-2xl border border-brand-100 shadow-soft space-y-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0">
-                            {rc.letter}
-                          </div>
-                          <div>
-                            <h5 className="font-extrabold text-neutral-900 text-sm leading-none uppercase">{rc.name}</h5>
-                            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider mt-1 block">{rc.ago}</span>
-                          </div>
-                        </div>
-                        <div className="flex text-yellow-400 text-xs">★★★★★</div>
-                        <p className="text-xs text-neutral-600 font-semibold italic leading-relaxed">
-                          "{rc.words}"
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                  <a 
+                    href={`https://wa.me/${contacts.OWNER}?text=Halo%20Amma%20Ika%20saya%20mau%20pesan%20sembako`}
+                    target="_blank"
+                    referrerPolicy="no-referrer"
+                    className="w-full md:w-auto px-6 py-3 h-12 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-colors shadow-xs shrink-0 cursor-pointer"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Chat WhatsApp
+                  </a>
                 </div>
-              </section>
+              </div>
 
-              {/* Bento Shop Location & Interactive Google Maps Embed */}
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-                <div className="text-center max-w-xl mx-auto space-y-2">
-                  <h2 className="text-2xl font-black uppercase tracking-tight text-neutral-900 leading-none">
-                    Lokasi & Jam Operasional
-                  </h2>
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Kunjungi Warung Kami Langsung Di Lero Pinrang
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-soft flex flex-col lg:flex-row items-stretch">
+              {/* Google Maps & Jam Operasional Section */}
+              <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 pt-4">
+                <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/60 overflow-hidden shadow-xs flex flex-col lg:flex-row items-stretch text-left">
                   {/* Google Maps Iframe block */}
-                  <div className="flex-1 min-h-[350px] lg:min-h-[450px] relative bg-neutral-200">
+                  <div className="flex-1 min-h-[280px] lg:min-h-[380px] relative bg-neutral-100">
                     <iframe 
                       title="Google Maps Location Warung Amma Ika"
                       src="https://maps.google.com/maps?q=Warung+Amma+Ika,+Lero,+Suppa,+Pinrang,+Sulawesi+Selatan&output=embed"
@@ -1688,63 +1546,58 @@ export default function App() {
                   </div>
 
                   {/* Operational Detail Column */}
-                  <div className="p-8 sm:p-12 lg:w-[450px] shrink-0 bg-neutral-50 text-neutral-800 space-y-8 flex flex-col justify-between">
-                    <div className="space-y-6">
-                      <div className="flex items-start gap-4">
-                        <MapPin className="text-brand-600 w-6 h-6 shrink-0 mt-1" />
+                  <div className="p-6 sm:p-8 lg:w-[400px] shrink-0 bg-surface-container-low/40 text-on-surface space-y-6 flex flex-col justify-between">
+                    <div className="space-y-5">
+                      <div className="flex items-start gap-3">
+                        <MapPin className="text-primary w-5 h-5 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-black text-xs text-neutral-400 uppercase tracking-widest leading-none mb-1">Alamat Warung</h4>
-                          <p className="text-sm font-bold text-neutral-850 leading-relaxed">
-                            Kampung Lero, Kecamatan Suppa, Kabupaten Pinrang, Sulawesi Selatan, Indonesia.
+                          <h4 className="font-bold text-xs text-on-surface-variant uppercase tracking-wider mb-1">Alamat Warung</h4>
+                          <p className="text-xs sm:text-sm font-semibold text-on-surface leading-relaxed">
+                            Kampung Lero, Kec. Suppa, Kab. Pinrang, Sulawesi Selatan.
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-4">
-                        <Clock className="text-brand-600 w-6 h-6 shrink-0 mt-1" />
+                      <div className="flex items-start gap-3">
+                        <Clock className="text-primary w-5 h-5 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-black text-xs text-neutral-400 uppercase tracking-widest leading-none mb-1">Jam Layanan</h4>
-                          <p className="text-sm font-black text-neutral-800 uppercase leading-none">
+                          <h4 className="font-bold text-xs text-on-surface-variant uppercase tracking-wider mb-1">Jam Operasional</h4>
+                          <p className="text-xs sm:text-sm font-bold text-on-surface">
                             Setiap Hari (07:00 - 22:00 WITA)
                           </p>
-                          <span className="text-[11px] text-green-600 font-bold block mt-1.5 uppercase tracking-wide">
-                            ✓ Pesanan Masuk Jam Operasional Dikirim Langsung!
+                          <span className="text-[10px] text-green-600 font-semibold block mt-1">
+                            ✓ Pesanan langsung diproses & siap diantar
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-4">
-                        <Bike className="text-brand-600 w-6 h-6 shrink-0 mt-1" />
+                      <div className="flex items-start gap-3">
+                        <Bike className="text-primary w-5 h-5 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-black text-xs text-neutral-400 uppercase tracking-widest leading-none mb-1">Area Delivery</h4>
-                          <p className="text-sm font-bold text-neutral-850 leading-relaxed">
-                            Melayani seluruh wilayah Kampung Ujung Lero, Suppa, dan area tetangga sekitar.
+                          <h4 className="font-bold text-xs text-on-surface-variant uppercase tracking-wider mb-1">Area Delivery</h4>
+                          <p className="text-xs sm:text-sm font-semibold text-on-surface leading-relaxed">
+                            Melayani seluruh Kampung Lero, Suppa, dan area sekitarnya.
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-6 border-t border-neutral-200">
-                      <h4 className="font-bold text-xs text-neutral-400 uppercase tracking-widest leading-none mb-3">Nomor Kontak WhatsApp</h4>
-                      <div className="grid grid-cols-1 gap-2 text-xs font-bold text-neutral-700">
-                        <div className="flex justify-between items-center py-1.5 border-b border-neutral-200/55">
+                    <div className="pt-4 border-t border-outline-variant/30">
+                      <h4 className="font-bold text-xs text-on-surface-variant uppercase tracking-wider mb-2">Kontak Kami</h4>
+                      <div className="space-y-1.5 text-xs text-on-surface">
+                        <div className="flex justify-between items-center py-1 border-b border-outline-variant/20">
                           <span>🏪 Amma Ika (Owner)</span>
-                          <span className="text-brand-600 font-extrabold">+852 9858 5059</span>
+                          <span className="text-primary font-bold">+852 9858 5059</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-neutral-200/55">
-                          <span>🛵 Kurir Dullah</span>
-                          <span className="text-brand-600 font-extrabold">+62 831 1091 0332</span>
-                        </div>
-                        <div className="flex justify-between items-center py-1.5">
-                          <span>🛵 Kurir Leman</span>
-                          <span className="text-brand-600 font-extrabold">+62 878 1725 0225</span>
+                        <div className="flex justify-between items-center py-1">
+                          <span>🛵 Kurir Lero</span>
+                          <span className="text-primary font-bold">+62 831 1091 0332</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </section>
-
             </motion.div>
           )}
 
@@ -1752,87 +1605,100 @@ export default function App() {
           {currentView === 'shop' && (
             <motion.div 
               key="shop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6"
             >
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-200 pb-5">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-outline-variant/40 pb-4 text-left">
                 <div>
-                  <h1 className="text-3xl font-black italic tracking-tighter uppercase text-neutral-900 leading-none">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-on-surface leading-tight">
                     Etalase Sembako Lengkap
                   </h1>
-                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mt-1">
-                    Semua kebutuhan dapur tersedia, dijamin murah & segar!
+                  <p className="text-xs font-medium text-on-surface-variant mt-1">
+                    Semua kebutuhan dapur tersedia, dijamin murah, lengkap & segar!
                   </p>
                 </div>
-                <div className="text-xs font-bold text-neutral-500 uppercase tracking-widest shrink-0">
-                  Total {filteredProducts.length} Produk Sesuai Filter
+                <div className="text-xs font-semibold text-on-surface-variant shrink-0">
+                  Total {filteredProducts.length} Produk
                 </div>
               </div>
 
               {/* Category selector row */}
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-5 py-3 rounded-xl text-xs font-bold uppercase shrink-0 transition-all border ${
-                      selectedCategory === cat 
-                        ? 'bg-brand-600 text-white border-brand-600 shadow-md scale-102' 
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-brand-500'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-2">
+                {categories.map(cat => {
+                  const active = selectedCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`whitespace-nowrap px-4 py-2 rounded-full font-semibold text-xs sm:text-sm transition-all cursor-pointer border ${
+                        active
+                          ? 'bg-primary-container text-on-primary-container border-transparent shadow-xs font-bold scale-102'
+                          : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/60 hover:bg-surface-variant'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Main Catalogue Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredProducts.map(p => (
                   <div 
-                    key={p.id} 
-                    className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col justify-between hover:border-brand-400 hover:shadow-lg transition-all"
+                    key={p.id}
+                    className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between group hover:shadow-lg transition-all duration-200 text-left"
                   >
                     {/* Image block */}
-                    <div className="relative aspect-square overflow-hidden bg-neutral-100 border-b border-neutral-100">
+                    <div className="h-32 sm:h-48 w-full relative bg-surface-container-low p-4 flex items-center justify-center">
                       <img 
                         src={p.image} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300" 
                         alt={p.name} 
                         referrerPolicy="no-referrer"
                       />
                       {!p.inStock && (
-                        <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center p-3">
-                          <span className="bg-red-650 text-white font-extrabold text-[9px] uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                        <div className="absolute inset-0 bg-white/70 backdrop-blur-2xs flex items-center justify-center p-2">
+                          <span className="bg-red-600 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
                             Stok Habis
                           </span>
                         </div>
                       )}
+                      {p.barcode && (
+                        <span className="absolute bottom-2 left-2 bg-surface-container-lowest/90 border border-outline-variant/60 text-on-surface-variant font-mono text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1 shadow-2xs">
+                          <Barcode className="w-2.5 h-2.5 text-primary" /> {p.barcode}
+                        </span>
+                      )}
                     </div>
 
                     {/* Meta data block */}
-                    <div className="p-4 flex-1 flex flex-col justify-between gap-3">
-                      <div className="space-y-1 text-left">
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest block leading-none">{p.category}</span>
-                        <h4 className="font-extrabold text-sm text-neutral-900 leading-tight line-clamp-2">{p.name}</h4>
-                        <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md inline-block tracking-tight mt-1">
-                          {p.unit}
-                        </span>
+                    <div className="p-3 flex flex-col flex-grow justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">{p.category}</span>
+                          {p.unit && <span className="text-[10px] text-on-surface-variant font-medium">{p.unit}</span>}
+                        </div>
+                        <h4 className="font-semibold text-sm text-on-surface mb-1 line-clamp-2 leading-snug">
+                          {p.name}
+                        </h4>
                       </div>
 
                       {/* Action footer block */}
-                      <div className="flex items-center justify-between pt-2 border-t border-neutral-100 shrink-0">
-                        <span className="font-extrabold text-base italic text-brand-700 tracking-tight">{formatPrice(p.price)}</span>
+                      <div className="mt-3 pt-2 flex items-center justify-between border-t border-outline-variant/20">
+                        <span className="font-bold text-sm sm:text-base text-secondary">
+                          {formatPrice(p.price)}
+                        </span>
                         {p.inStock ? (
                           <button 
                             onClick={() => addToCart(p)}
-                            className="bg-brand-600 hover:bg-brand-700 active:scale-90 text-white p-2.5 rounded-lg shadow-sm transition-all flex items-center justify-center"
+                            className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:bg-primary hover:text-on-primary transition-all active:scale-90 shadow-xs cursor-pointer"
+                            title="Tambah ke Keranjang"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         ) : (
                           <button 
                             disabled 
-                            className="bg-neutral-200 text-neutral-400 p-2.5 rounded-lg cursor-not-allowed"
+                            className="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant/40 flex items-center justify-center cursor-not-allowed"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
