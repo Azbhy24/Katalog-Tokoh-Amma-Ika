@@ -1,10 +1,37 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, getDoc, getDocs, collection, setDoc, updateDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
+import { 
+  initializeFirestore,
+  getFirestore, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  collection, 
+  setDoc, 
+  updateDoc, 
+  onSnapshot, 
+  getDocFromServer,
+  Firestore 
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+const firestoreDbId = (firebaseConfig as any).firestoreDatabaseId;
+
+let firestoreInstance: Firestore;
+try {
+  firestoreInstance = initializeFirestore(
+    app,
+    {
+      experimentalForceLongPolling: true,
+    },
+    firestoreDbId
+  );
+} catch {
+  firestoreInstance = getFirestore(app, firestoreDbId);
+}
+
+export const db = firestoreInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 

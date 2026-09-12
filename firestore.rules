@@ -59,5 +59,10 @@ service cloud.firestore {
       allow create: if true; // Customers can create orders
       allow update, delete: if isSignedIn();
     }
+
+    // Health / Connection test doc
+    match /test/{docId} {
+      allow read: if true;
+    }
   }
 }

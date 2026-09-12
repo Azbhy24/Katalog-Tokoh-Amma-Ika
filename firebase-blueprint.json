@@ -51,6 +51,14 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["buyerName", "items", "total", "courier", "createdAt"]
+    },
+    "TestConnection": {
+      "title": "Test Connection",
+      "description": "Health check document for verifying backend connection.",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -65,6 +73,10 @@
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Orders received from customers."
+    },
+    "/test/{docId}": {
+      "schema": "TestConnection",
+      "description": "Connection test document for health checks."
     }
   }
 }
