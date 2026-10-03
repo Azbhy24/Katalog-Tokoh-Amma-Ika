@@ -11,13 +11,14 @@
           "type": "object",
           "properties": {
             "OWNER": { "type": "string" },
-            "DULLAH": { "type": "string" },
-            "LEMAN": { "type": "string" }
+            "KURIR_DULLAH": { "type": "string" },
+            "KURIR_LEMAN": { "type": "string" }
           }
         },
-        "adminPin": { "type": "string" }
+        "deliveryFeeDefault": { "type": "integer" },
+        "storeAddress": { "type": "string" }
       },
-      "required": ["isOpen", "minOrder", "contacts", "adminPin"]
+      "required": ["isOpen", "minOrder", "contacts"]
     },
     "Product": {
       "title": "Product",
@@ -42,15 +43,38 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "name": { "type": "string" },
         "buyerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "deliveryMethod": { "type": "string" },
+        "address": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "benchmark": { "type": "string" },
+        "notes": { "type": "string" },
+        "deliveryNotes": { "type": "string" },
         "items": { "type": "array" },
+        "subtotal": { "type": "integer" },
+        "deliveryFee": { "type": "integer" },
         "total": { "type": "integer" },
-        "courier": { "type": "string" },
-        "deliveryTime": { "type": "string" },
         "status": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "customerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "courier": { "type": "string" },
+        "deliveryTime": { "type": "string" }
       },
-      "required": ["buyerName", "items", "total", "courier", "createdAt"]
+      "required": ["id", "customerId", "name", "phone", "deliveryMethod", "items", "subtotal", "total", "status", "createdAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Authorized administrator user.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
     },
     "TestConnection": {
       "title": "Test Connection",
@@ -73,6 +97,10 @@
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Orders received from customers."
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized admin users."
     },
     "/test/{docId}": {
       "schema": "TestConnection",

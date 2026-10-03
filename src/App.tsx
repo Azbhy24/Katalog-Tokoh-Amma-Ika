@@ -37,7 +37,8 @@ import {
   Barcode,
   Camera,
   Scan,
-  Zap
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -346,7 +347,6 @@ export default function App() {
   const [buyerName, setBuyerName] = useState('');
   const [selectedCourier, setSelectedCourier] = useState<Courier>('none');
   const [deliveryTime, setDeliveryTime] = useState('Pagi Ini');
-  const [adminPasscode, setAdminPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
 
   const [adminTab, setAdminTab] = useState<'orders' | 'products' | 'add-product'>('orders');
@@ -388,10 +388,25 @@ export default function App() {
 
   // Auth Sync
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u && u.email === 'advanicplus173@gmail.com') {
-        setIsAdminAuthenticated(true);
+      if (u && !u.isAnonymous) {
+        if (u.email === 'advanicplus173@gmail.com') {
+          setIsAdminAuthenticated(true);
+        } else {
+          try {
+            const adminDoc = await getDoc(doc(db, 'admins', u.uid));
+            if (adminDoc.exists()) {
+              setIsAdminAuthenticated(true);
+            } else {
+              setIsAdminAuthenticated(false);
+            }
+          } catch {
+            setIsAdminAuthenticated(false);
+          }
+        }
+      } else {
+        setIsAdminAuthenticated(false);
       }
     });
     return () => unsubscribe();
@@ -419,24 +434,44 @@ export default function App() {
       setTrackedOrder(null);
       return;
     }
-    const orderDocRef = doc(db, 'orders', activeOrderId);
-    const unsubscribe = onSnapshot(
-      orderDocRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setTrackedOrder({ id: snap.id, ...data });
-          // If the order exists, automatically make sure buyerName is hydrated
-          if (data.buyerName) setBuyerName(data.buyerName);
-        } else {
-          setTrackedOrder(null);
+    let isCancelled = false;
+    let unsubscribe: (() => void) | null = null;
+
+    const initTracking = async () => {
+      if (!auth.currentUser) {
+        try {
+          await signInAnonymously(auth);
+        } catch (e) {
+          console.warn("Could not ensure auth for tracking:", e);
         }
-      },
-      (error) => {
-        console.error("Tracked order snapshot error:", error);
       }
-    );
-    return () => unsubscribe();
+      if (isCancelled) return;
+
+      const orderDocRef = doc(db, 'orders', activeOrderId);
+      unsubscribe = onSnapshot(
+        orderDocRef,
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setTrackedOrder({ id: snap.id, ...data });
+            // If the order exists, automatically make sure buyerName is hydrated
+            if (data.buyerName) setBuyerName(data.buyerName);
+          } else {
+            setTrackedOrder(null);
+          }
+        },
+        (error) => {
+          console.warn("Tracked order snapshot notice (access restricted):", error);
+        }
+      );
+    };
+
+    initTracking();
+
+    return () => {
+      isCancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
   }, [activeOrderId]);
 
   // Hidden admin trigger: 5 clicks on logo/title
@@ -650,21 +685,36 @@ export default function App() {
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
   };
 
-  const loginWithGoogle = () => signInWithPopup(auth, googleProvider).catch(e => console.error(e));
-  
-  // Passcode login for demo/testing convenience
-  const handlePasscodeLogin = (e: any) => {
-    e.preventDefault();
-    if (adminPasscode === '1234' || adminPasscode === 'admin') {
-      setIsAdminAuthenticated(true);
+  const loginWithGoogle = async () => {
+    try {
       setPasscodeError('');
-      signInAnonymously(auth).catch(err => console.warn("Failed to sign in anonymously:", err));
-    } else {
-      setPasscodeError('PIN Admin salah. Gunakan Pin "1234" untuk masuk.');
+      const result = await signInWithPopup(auth, googleProvider);
+      const loggedUser = result.user;
+      if (loggedUser.email === 'advanicplus173@gmail.com') {
+        setIsAdminAuthenticated(true);
+        showAlert("Selamat Datang", `Berhasil masuk sebagai Pengelola Warung (${loggedUser.email})`);
+      } else {
+        const adminDoc = await getDoc(doc(db, 'admins', loggedUser.uid));
+        if (adminDoc.exists()) {
+          setIsAdminAuthenticated(true);
+          showAlert("Selamat Datang", `Berhasil masuk sebagai Pengelola Warung (${loggedUser.email})`);
+        } else {
+          setIsAdminAuthenticated(false);
+          setPasscodeError(`Akses Ditolak: Akun (${loggedUser.email || 'Tanpa Email'}) bukan akun pengelola terdaftar. Silakan login menggunakan akun Google resmi Amma Ika.`);
+          await signOut(auth);
+        }
+      }
+    } catch (e: any) {
+      console.error('Google Sign In Error:', e);
+      setPasscodeError(e.message || 'Gagal login dengan Google');
     }
   };
 
-  const logout = () => signOut(auth).then(() => { setCurrentView('home'); setIsAdminAuthenticated(false); });
+  const logout = () => signOut(auth).then(() => { 
+    setCurrentView('home'); 
+    setIsAdminAuthenticated(false); 
+    showAlert("Keluar Portal", "Anda telah keluar dari Portal Pengelola.");
+  });
 
   const handleSaveProductEdit = async (e: any) => {
     e.preventDefault();
@@ -2239,55 +2289,46 @@ export default function App() {
               </header>
 
               {!isAdminAuthenticated ? (
-                // Clean custom PIN login component
-                <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-neutral-200 shadow-soft text-center space-y-8">
-                  <div className="w-16 h-16 bg-brand-50 rounded-2xl mx-auto flex items-center justify-center border border-brand-100 shadow-sm">
-                    <User className="w-8 h-8 text-brand-600" />
+                // Secure Google Admin Login
+                <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-neutral-200 shadow-soft text-center space-y-6">
+                  <div className="w-16 h-16 bg-amber-50 rounded-2xl mx-auto flex items-center justify-center border border-amber-200 shadow-sm text-amber-700">
+                    <ShieldCheck className="w-8 h-8" />
                   </div>
                   
                   <div className="space-y-2">
-                    <h2 className="text-xl font-extrabold text-neutral-900 uppercase tracking-tight leading-none">Khusus Pengelola</h2>
-                    <p className="text-xs text-neutral-400 font-medium px-4 leading-relaxed">
-                      Laman khusus keluarga Amma Ika untuk mengedit ketersediaan barang dan memantau pesanan pembeli.
+                    <h2 className="text-xl font-extrabold text-neutral-900 uppercase tracking-tight leading-none">
+                      Portal Pengelola Warung
+                    </h2>
+                    <p className="text-xs text-neutral-500 font-medium px-4 leading-relaxed">
+                      Laman khusus Amma Ika untuk mengelola produk, mengubah harga, stok, dan memantau pesanan masuk secara real-time.
                     </p>
                   </div>
 
-                  <form onSubmit={handlePasscodeLogin} className="space-y-4">
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-[10px] font-black uppercase text-neutral-500 ml-1 tracking-widest">
-                        PIN PENGELOLA (Demo: 1234 atau admin)
-                      </label>
-                      <input 
-                        type="password" 
-                        value={adminPasscode} 
-                        onChange={(e) => setAdminPasscode(e.target.value)}
-                        placeholder="Masukan 4 digit PIN..." 
-                        className="w-full bg-neutral-100 px-5 py-3 rounded-xl font-black text-center text-lg border border-transparent outline-none focus:bg-white focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all tracking-wider text-neutral-800"
-                      />
-                    </div>
+                  <div className="p-3.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-left text-2xs text-neutral-600 space-y-1.5">
+                    <p className="font-bold text-neutral-800 flex items-center gap-1.5">
+                      <span>🔒</span> Keamanan Otorisasi Terverifikasi
+                    </p>
+                    <p>
+                      Akses administratif dilindungi oleh Firebase Security Rules. Hanya akun Google resmi pemilik yang diizinkan memodifikasi data toko dan melihat daftar pesanan pembeli.
+                    </p>
+                  </div>
 
-                    {passcodeError && (
-                      <p className="text-xs font-semibold text-red-500 bg-red-50 p-2.5 rounded-lg border border-red-150">
-                        {passcodeError}
-                      </p>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      <button 
-                        type="submit"
-                        className="py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-md transition-all active:scale-95"
-                      >
-                        Masuk PIN 🗝️
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={loginWithGoogle}
-                        className="py-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-lg transition-all active:scale-95 border border-neutral-205"
-                      >
-                        Google login 🌐
-                      </button>
+                  {passcodeError && (
+                    <div className="text-xs font-semibold text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200 text-left">
+                      {passcodeError}
                     </div>
-                  </form>
+                  )}
+
+                  <div className="pt-2">
+                    <button 
+                      type="button"
+                      onClick={loginWithGoogle}
+                      className="w-full py-4 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Globe className="w-4 h-4 text-amber-400" />
+                      <span>Masuk dengan Akun Google Resmi</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-10">
@@ -2470,15 +2511,21 @@ export default function App() {
                                 }}
                                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none border cursor-pointer ${
                                   o.status === 'pending' ? 'bg-orange-50 text-orange-650 border-orange-200' :
-                                  o.status === 'cooking' ? 'bg-yellow-50 text-yellow-700 border-yellow-250' :
-                                  o.status === 'ready' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                  'bg-green-50 text-green-700 border-green-250'
+                                  o.status === 'confirmed' ? 'bg-amber-50 text-amber-700 border-amber-250' :
+                                  o.status === 'preparing' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                  o.status === 'ready_for_delivery' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                  o.status === 'on_delivery' || o.status === 'delivering' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                  o.status === 'delivered' || o.status === 'completed' ? 'bg-green-50 text-green-700 border-green-250' :
+                                  'bg-red-50 text-red-700 border-red-200'
                                 }`}
                               >
-                                <option value="pending">Antrean Dapur (Pending)</option>
-                                <option value="cooking">Sedang Dimasak (Cooking)</option>
-                                <option value="ready">Siap Disajikan (Ready)</option>
-                                <option value="completed">Selesai (Completed)</option>
+                                <option value="pending">1. Menunggu Konfirmasi (Pending)</option>
+                                <option value="confirmed">2. Dikonfirmasi (Confirmed)</option>
+                                <option value="preparing">3. Sedang Dikemas (Preparing)</option>
+                                <option value="ready_for_delivery">4. Siap Diantar / Ambil (Ready)</option>
+                                <option value="on_delivery">5. Sedang Diantar (On Delivery)</option>
+                                <option value="delivered">6. Pesanan Selesai (Delivered)</option>
+                                <option value="cancelled">X. Batalkan Pesanan (Cancelled)</option>
                               </select>
                               <button 
                                 onClick={() => handleDeleteOrder(o.id)} 

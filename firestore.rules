@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
+    // 0. Global Safety Net - Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
@@ -15,49 +15,95 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // Settings rules
-    match /settings/config {
-      // Everyone can read settings to see if store is open
-      allow read: if true;
-      
-      // Only authenticated users can update (in this prototype, we'll keep it simple, 
-      // but ideally we'd have a specific admin UID check if we had multiple login types)
-      allow write: if isSignedIn();
-      
-      function isValidSettings(data) {
-        return data.keys().hasAll(['isOpen', 'minOrder', 'contacts', 'adminPin']) 
-          && data.keys().size() == 4
-          && data.isOpen is bool
-          && data.minOrder is int
-          && data.contacts is map
-          && data.adminPin is string;
-      }
+    // Admin authorization check:
+    // 1. Authenticated Google user matching the official store owner email (verified)
+    // OR
+    // 2. Document exists in the /admins/{uid} collection
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == "advanicplus173@gmail.com" && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
-    // Product rules
+    // Admin collection rules
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(adminId);
+    }
+
+    // Settings rules
+    // Public can read general store configuration (isOpen, default ongkir, address)
+    // Only verified admin can modify store settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(docId);
+    }
+
+    // Product validation helper
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'price', 'unit', 'category', 'image', 'inStock'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.price is number && data.price >= 0
+        && data.unit is string && data.unit.size() <= 50
+        && data.category is string && data.category.size() <= 100
+        && data.image is string && data.image.size() <= 2048
+        && data.inStock is bool
+        && (!('barcode' in data) || (data.barcode is string && data.barcode.size() <= 128));
+    }
+
+    // Products rules
+    // Public can read product catalog
+    // Only verified admin can create, update, or delete products
     match /products/{productId} {
       allow read: if true;
-      allow write: if true;
-      
-      function isValidProduct(data) {
-        return data.keys().hasAll(['id', 'name', 'price', 'unit', 'category', 'image', 'inStock'])
-          && data.id is string
-          && data.name is string
-          && data.price is int
-          && data.unit is string
-          && data.category is string
-          && data.image is string
-          && data.inStock is bool
-          && (!('barcode' in data) || (data.barcode is string && data.barcode.size() <= 128));
-      }
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(request.resource.data) && request.resource.data.id == productId;
+      allow update: if isAdmin() && isValidId(productId) && isValidProduct(request.resource.data);
+      allow delete: if isAdmin() && isValidId(productId);
     }
 
-    // Order rules
-    match /orders/{orderId} {
-      allow get: if true; // Any customer can track their own order if they hold the direct link / ID
-      allow list: if isSignedIn(); // Only admins can list/query all orders
-      allow create: if true; // Customers can create orders
-      allow update, delete: if isSignedIn();
+    // Order creation validation helper
+    function isValidOrderCreate(data, secretToken) {
+      return data.keys().hasAll([
+        'id', 'createdAt', 'name', 'phone', 'deliveryMethod', 
+        'items', 'subtotal', 'deliveryFee', 'total', 'status', 'secretToken'
+      ])
+      && data.id is string && data.id.size() > 0 && data.id.size() <= 64
+      && data.secretToken is string && data.secretToken == secretToken && data.secretToken.size() >= 24
+      && data.createdAt is string && data.createdAt.size() <= 64
+      && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+      && data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 30
+      && (data.deliveryMethod == 'delivery' || data.deliveryMethod == 'pickup')
+      && data.items is list && data.items.size() > 0 && data.items.size() <= 50
+      && data.subtotal is number && data.subtotal >= 0
+      && data.deliveryFee is number && data.deliveryFee >= 0
+      && data.total is number && data.total >= 0
+      && data.status == 'pending'
+      && (!('assignedCourierId' in data) || data.assignedCourierId == null);
+    }
+
+    // Orders rules
+    match /orders/{secretToken} {
+      // 1. Single order read:
+      // - Admin can read any order
+      // - Customer can ONLY read if the document ID matches their unguessable secretToken (size >= 24)
+      // - Knowing only the human orderId (e.g. #ORD-1234) does NOT grant access to customer PII
+      allow get: if isValidId(secretToken) && (
+        isAdmin() || 
+        (secretToken.size() >= 24 && resource.data.secretToken == secretToken)
+      );
+      
+      // 2. Listing orders: STRICTLY ADMIN ONLY. Public or arbitrary customers cannot query/scrape all orders
+      allow list: if isAdmin();
+      
+      // 3. Create order: Anyone can place an order, but status must be 'pending' and the document ID must match secretToken
+      allow create: if isValidId(secretToken) 
+        && secretToken.size() >= 24
+        && isValidOrderCreate(request.resource.data, secretToken);
+      
+      // 4. Update / Delete order: STRICTLY ADMIN ONLY
+      allow update, delete: if isAdmin() && isValidId(secretToken);
     }
 
     // Health / Connection test doc

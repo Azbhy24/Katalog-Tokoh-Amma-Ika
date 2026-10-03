@@ -38,7 +38,10 @@ export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'preparing'
+  | 'ready_for_delivery'
+  | 'on_delivery'
   | 'delivering'
+  | 'delivered'
   | 'completed'
   | 'cancelled';
 
@@ -56,6 +59,7 @@ export interface CustomerInfo {
   phone?: string;
   deliveryMethod: DeliveryMethod;
   address?: string;
+  benchmark?: string;
   notes?: string;
   courierName?: string;
 }
@@ -69,9 +73,16 @@ export interface Order extends CustomerInfo {
   total: number;
   status: OrderStatus;
   paymentMethod?: 'cash' | 'qris';
-  // Backward compatibility fields
+  // Backward compatibility & courier app forward compatibility fields
   buyerName?: string;
   courier?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  deliveryNotes?: string;
+  deliveryTime?: string;
+  assignedCourierId?: string | null;
+  customerId?: string;
+  secretToken?: string;
 }
 
 export interface StoreContacts {

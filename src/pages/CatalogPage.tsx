@@ -5,10 +5,12 @@ import { CategoryPills } from '../components/catalog/CategoryPills';
 import { ProductGrid } from '../components/catalog/ProductGrid';
 import { StickyCartBar } from '../components/layout/StickyCartBar';
 import { CartDrawer } from '../components/cart/CartDrawer';
+import { CheckoutModal } from '../components/checkout/CheckoutModal';
+import { OrderTrackingModal } from '../components/tracking/OrderTrackingModal';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { useSettings } from '../hooks/useSettings';
-import { Category } from '../types';
+import { Category, Order } from '../types';
 import { DEFAULT_CATEGORIES } from '../constants/index';
 
 interface CatalogPageProps {
@@ -26,11 +28,21 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onOpenAdmin }) => {
     addToCart,
     removeFromCart,
     deleteItem,
+    clearCart,
   } = useCart();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category>('Semua');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [activeTrackingToken, setActiveTrackingToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('last_active_order_id');
+    } catch {
+      return null;
+    }
+  });
 
   // Kategori dinamis dari data produk + fallback kategori dasar
   const categories = useMemo(() => {
@@ -71,10 +83,30 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onOpenAdmin }) => {
         totalCartItems={totalItems}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenAdmin={onOpenAdmin}
+        hasActiveOrder={Boolean(activeTrackingToken)}
+        onOpenTracking={() => setIsTrackingOpen(true)}
       />
 
       {/* Konten Utama */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28">
+        {/* Banner Pesanan Aktif (Jika Ada Order Dalam Pelacakan) */}
+        {activeTrackingToken && (
+          <div className="p-3 sm:p-3.5 bg-emerald-50 border border-emerald-200/90 rounded-2xl flex items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <p className="truncate font-semibold text-emerald-900">
+                Ada pesanan Anda yang sedang diproses oleh Warung Amma Ika
+              </p>
+            </div>
+            <button
+              onClick={() => setIsTrackingOpen(true)}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-2xs uppercase tracking-wider shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs"
+            >
+              Lacak Status
+            </button>
+          </div>
+        )}
+
         {/* Banner Status Tutup (Jika Toko Sedang Tutup) */}
         {!settings.isOpen && (
           <div className="p-3.5 sm:p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-amber-950 text-xs sm:text-sm">
@@ -148,8 +180,37 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onOpenAdmin }) => {
         onAddToCart={addToCart}
         onRemoveFromCart={removeFromCart}
         onDeleteItem={deleteItem}
-        // Placeholder untuk Phase 4 Checkout
-        onProceedToCheckout={undefined}
+        onProceedToCheckout={() => {
+          setIsCartOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+      />
+
+      {/* Checkout Modal V2 */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        items={cartItems}
+        subtotal={subtotal}
+        settings={settings}
+        onOrderSuccess={(order: Order) => {
+          clearCart();
+          if (order.secretToken) {
+            setActiveTrackingToken(order.secretToken);
+          }
+        }}
+        onOpenTracking={(secretToken: string) => {
+          setActiveTrackingToken(secretToken);
+          setIsTrackingOpen(true);
+        }}
+      />
+
+      {/* Realtime Order Tracking Modal V2 */}
+      <OrderTrackingModal
+        isOpen={isTrackingOpen}
+        onClose={() => setIsTrackingOpen(false)}
+        secretToken={activeTrackingToken}
+        settings={settings}
       />
     </div>
   );

@@ -7,6 +7,8 @@ interface HeaderProps {
   totalCartItems: number;
   onOpenCart: () => void;
   onOpenAdmin?: () => void;
+  onOpenTracking?: () => void;
+  hasActiveOrder?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   totalCartItems,
   onOpenCart,
   onOpenAdmin,
+  onOpenTracking,
+  hasActiveOrder,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200/80 transition-colors">
@@ -51,6 +55,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Tombol Aksi Kanan */}
         <div className="flex items-center gap-2">
+          {/* Tombol Lacak Pesanan Aktif */}
+          {hasActiveOrder && onOpenTracking && (
+            <button
+              onClick={onOpenTracking}
+              title="Lacak Pesanan Aktif"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 transition-all active:scale-95 cursor-pointer text-xs font-bold shadow-xs"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="hidden sm:inline">Lacak Pesanan</span>
+            </button>
+          )}
+
           {/* Tombol Keranjang (Desktop/Tablet) */}
           <button
             onClick={onOpenCart}

@@ -30,10 +30,14 @@ export function generateWhatsAppMessage(order: Order): string {
       ? `Antar ke Rumah${order.courierName ? ` (Kurir ${order.courierName})` : ''}`
       : 'Ambil Sendiri di Toko';
 
+  const customerPhone = order.phone || order.customerPhone;
+  const address = order.address || order.deliveryAddress;
+  const notes = order.notes || order.deliveryNotes;
+
   return `*WARUNG AMMA IKA — PESANAN BARU*
 No. Pesanan: #${order.id}
 
-Halo Amma Ika, saya mau pesan:
+Halo Amma Ika, saya mau pesan sembako:
 
 ${itemsText}
 
@@ -45,8 +49,8 @@ Ongkir: ${order.deliveryFee > 0 ? formatRupiah(order.deliveryFee) : 'Gratis'}
 ----------------------------------
 
 *Data Pembeli:*
-Nama: ${order.name || '-'}
-${order.deliveryMethod === 'delivery' ? `Alamat: ${order.address || '-'}\n` : ''}${order.notes ? `Catatan: ${order.notes}\n` : ''}
+Nama: ${order.name || order.buyerName || '-'}
+${customerPhone ? `No. WhatsApp: ${customerPhone}\n` : ''}${order.deliveryMethod === 'delivery' ? `Alamat: ${address || '-'}\n` : ''}${order.benchmark ? `Patokan: ${order.benchmark}\n` : ''}${notes ? `Catatan: ${notes}\n` : ''}
 Terima kasih!`;
 }
 
