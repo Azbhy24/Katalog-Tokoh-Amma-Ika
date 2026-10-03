@@ -51,6 +51,7 @@ import {
 } from 'recharts';
 import { PRODUCTS, BUNDLES, CONTACTS, PRODUCT_CATEGORIES, type Product, type Bundle } from './constants';
 import AdminAddProduct from './components/AdminAddProduct';
+import { CatalogPage } from './pages/CatalogPage';
 import { 
   db, 
   auth, 
@@ -126,7 +127,7 @@ function AnimatedNumber({ value }: { value: number }) {
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<View>('pos');
+  const [currentView, setCurrentView] = useState<View>('home');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [orders, setOrders] = useState<any[]>([]);
@@ -815,6 +816,13 @@ export default function App() {
     }
   };
 
+  // Phase 3: Seamless V2 Customer Catalog
+  if (currentView === 'home') {
+    return (
+      <CatalogPage onOpenAdmin={() => setCurrentView('admin')} />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans selection:bg-warung-brand/20 flex flex-col">
       
@@ -1348,8 +1356,15 @@ export default function App() {
             </motion.div>
           )}
 
+          {/* HOME VIEW: V2 Customer Catalog Modular Component */}
+          {currentView === 'home' ? (
+            <div key="home" className="w-full">
+              <CatalogPage onOpenAdmin={() => setCurrentView('admin')} />
+            </div>
+          ) : null}
+
           {/* HOME VIEW: Stitch Design System Catalog */}
-          {currentView === 'home' && (
+          {false && currentView === 'home' && (
             <motion.div 
               key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="space-y-6 py-4"
