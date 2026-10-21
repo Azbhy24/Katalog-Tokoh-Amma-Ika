@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, ShoppingBag } from 'lucide-react';
 import { StoreSettings } from '../../types';
+import { PWAInstallHeaderButton } from '../pwa/PWAInstallHeaderButton';
 
 interface HeaderProps {
   settings: StoreSettings;
@@ -74,6 +75,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Lacak Pesanan</span>
             </button>
           )}
+
+          {/* Tombol Pasang di HP (PWA) */}
+          <PWAInstallHeaderButton />
 
           {/* Tombol Keranjang (Desktop/Tablet) */}
           <button

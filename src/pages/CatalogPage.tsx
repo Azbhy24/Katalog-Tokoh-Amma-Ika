@@ -7,6 +7,7 @@ import { StickyCartBar } from '../components/layout/StickyCartBar';
 import { CartDrawer } from '../components/cart/CartDrawer';
 import { CheckoutModal } from '../components/checkout/CheckoutModal';
 import { OrderTrackingModal } from '../components/tracking/OrderTrackingModal';
+import { PWAInstallBanner } from '../components/pwa/PWAInstallBanner';
 import { useProducts } from '../hooks/useProducts';
 import { useCart } from '../hooks/useCart';
 import { useSettings } from '../hooks/useSettings';
@@ -212,6 +213,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({ onOpenAdmin }) => {
         secretToken={activeTrackingToken}
         settings={settings}
       />
+
+      {/* PWA Promotion Modal */}
+      <PWAInstallBanner />
     </div>
   );
 };

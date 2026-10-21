@@ -20,8 +20,7 @@ export function usePWAInstall() {
     const checkStandalone = () => {
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
-        document.referrer.includes('android-app://');
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true;
       setIsInstalled(isStandalone);
     };
 
@@ -29,7 +28,7 @@ export function usePWAInstall() {
 
     // 2. Deteksi perangkat & browser
     const ua = window.navigator.userAgent.toLowerCase();
-    const ios = /iphone|ipad|ipod/.test(ua);
+    const ios = /iphone|ipad|ipod/.test(ua) || (navigator.maxTouchPoints > 1 && /macintosh/.test(ua));
     const android = /android/.test(ua);
     const inApp = /fban|fbav|instagram|threads|line|micromessenger|whatsapp|wv/.test(ua);
 
@@ -56,12 +55,25 @@ export function usePWAInstall() {
       localStorage.removeItem(DISMISS_KEY);
     };
 
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setIsInstalled(true);
+      }
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleMediaChange);
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleMediaChange);
+      }
     };
   }, []);
 

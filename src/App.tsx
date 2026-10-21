@@ -55,7 +55,6 @@ import {
 import { PRODUCTS, BUNDLES, CONTACTS, PRODUCT_CATEGORIES, type Product, type Bundle } from './constants';
 import AdminAddProduct from './components/AdminAddProduct';
 import { CatalogPage } from './pages/CatalogPage';
-import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
 import { PWAInstallHeaderButton } from './components/pwa/PWAInstallHeaderButton';
 import { 
   updateOrderStatus, 
@@ -3653,9 +3652,6 @@ export default function App() {
           <span className="text-[9px] uppercase tracking-wider mt-0.5">Admin</span>
         </button>
       </div>
-
-      {/* PWA In-App Install Prompt Banner */}
-      <PWAInstallBanner />
 
     </div>
   );
