@@ -65,7 +65,10 @@ export interface CustomerInfo {
 }
 
 export interface Order extends CustomerInfo {
-  id: string;
+  id: string; // Public human order ID, e.g. 'ORD-XXXXXX'
+  orderNumber?: string; // Explicit public order number, e.g. 'ORD-XXXXXX'
+  documentId?: string; // Firestore document ID (always matches secretToken)
+  secretToken?: string; // Secret security token for document access & privacy isolation
   createdAt: string;
   items: OrderItem[];
   subtotal: number;
@@ -82,7 +85,6 @@ export interface Order extends CustomerInfo {
   deliveryTime?: string;
   assignedCourierId?: string | null;
   customerId?: string;
-  secretToken?: string;
 }
 
 export interface StoreContacts {

@@ -18,7 +18,7 @@ export const StickyCartBar: React.FC<StickyCartBarProps> = ({
   return (
     <aside
       aria-label="Keranjang Belanja Mengambang"
-      className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-6 sm:w-96 z-40 animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed bottom-16 sm:bottom-6 inset-x-3 sm:inset-x-auto sm:right-6 sm:w-96 z-40 animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
       <button
         onClick={onOpenCart}

@@ -21,7 +21,7 @@ service cloud.firestore {
     // 2. Document exists in the /admins/{uid} collection
     function isAdmin() {
       return isSignedIn() && (
-        (request.auth.token.email == "advanicplus173@gmail.com" && request.auth.token.email_verified == true) ||
+        (request.auth.token.email != null && request.auth.token.email.lower() == "advanicplus173@gmail.com" && request.auth.token.email_verified == true) ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -42,15 +42,16 @@ service cloud.firestore {
 
     // Product validation helper
     function isValidProduct(data) {
-      return data.keys().hasAll(['id', 'name', 'price', 'unit', 'category', 'image', 'inStock'])
-        && data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
-        && data.price is number && data.price >= 0
-        && data.unit is string && data.unit.size() <= 50
-        && data.category is string && data.category.size() <= 100
-        && data.image is string && data.image.size() <= 2048
-        && data.inStock is bool
-        && (!('barcode' in data) || (data.barcode is string && data.barcode.size() <= 128));
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128))
+        && (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() <= 200))
+        && (!('price' in data) || (data.price is number && data.price >= 0))
+        && (!('unit' in data) || (data.unit is string && data.unit.size() <= 50))
+        && (!('category' in data) || (data.category is string && data.category.size() <= 100))
+        && (!('image' in data) || (data.image is string && data.image.size() <= 500000))
+        && (!('inStock' in data) || (data.inStock is bool))
+        && (!('barcode' in data) || (data.barcode is string && data.barcode.size() <= 128))
+        && (!('featured' in data) || (data.featured is bool))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 1000));
     }
 
     // Products rules
@@ -58,7 +59,7 @@ service cloud.firestore {
     // Only verified admin can create, update, or delete products
     match /products/{productId} {
       allow read: if true;
-      allow create: if isAdmin() && isValidId(productId) && isValidProduct(request.resource.data) && request.resource.data.id == productId;
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(request.resource.data) && ('name' in request.resource.data) && ('price' in request.resource.data);
       allow update: if isAdmin() && isValidId(productId) && isValidProduct(request.resource.data);
       allow delete: if isAdmin() && isValidId(productId);
     }

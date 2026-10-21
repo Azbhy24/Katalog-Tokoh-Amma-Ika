@@ -38,7 +38,9 @@ import {
   Camera,
   Scan,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  Edit3,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -53,6 +55,19 @@ import {
 import { PRODUCTS, BUNDLES, CONTACTS, PRODUCT_CATEGORIES, type Product, type Bundle } from './constants';
 import AdminAddProduct from './components/AdminAddProduct';
 import { CatalogPage } from './pages/CatalogPage';
+import { 
+  updateOrderStatus, 
+  deleteOrder, 
+  subscribeToAllOrders 
+} from './services/orders.service';
+import { 
+  subscribeToProducts, 
+  toggleProductStock, 
+  saveProduct,
+  createProduct,
+  deleteProduct
+} from './services/products.service';
+import type { Order, OrderStatus } from './types';
 import { 
   db, 
   auth, 
@@ -91,6 +106,64 @@ interface CartItem {
   toppings?: string[];
   notes?: string;
 }
+
+const ORDER_STATUS_CONFIG: { 
+  id: OrderStatus; 
+  label: string; 
+  badgeClass: string; 
+  icon: string; 
+  description: string;
+}[] = [
+  { 
+    id: 'pending', 
+    label: '1. Menunggu Konfirmasi', 
+    badgeClass: 'bg-orange-50 text-orange-700 border-orange-200', 
+    icon: '⏳',
+    description: 'Pesanan baru masuk dari pembeli, menunggu konfirmasi toko' 
+  },
+  { 
+    id: 'confirmed', 
+    label: '2. Dikonfirmasi', 
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200', 
+    icon: '📋',
+    description: 'Pesanan telah diterima dan disetujui warung' 
+  },
+  { 
+    id: 'preparing', 
+    label: '3. Sedang Dikemas', 
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200', 
+    icon: '📦',
+    description: 'Barang sedang dipersiapkan dan dipacking rapi' 
+  },
+  { 
+    id: 'ready_for_delivery', 
+    label: '4. Siap Diantar / Ambil', 
+    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200', 
+    icon: '🛍️',
+    description: 'Barang siap diambil di warung atau diserahkan ke kurir' 
+  },
+  { 
+    id: 'on_delivery', 
+    label: '5. Sedang Diantar', 
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200', 
+    icon: '🛵',
+    description: 'Kurir sedang dalam perjalanan ke alamat pembeli' 
+  },
+  { 
+    id: 'delivered', 
+    label: '6. Pesanan Selesai', 
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
+    icon: '✅',
+    description: 'Barang telah diterima pembeli & transaksi selesai' 
+  },
+  { 
+    id: 'cancelled', 
+    label: 'X. Batalkan Pesanan', 
+    badgeClass: 'bg-rose-50 text-rose-700 border-rose-200', 
+    icon: '🚫',
+    description: 'Pesanan dibatalkan (stok habis atau permintaan pelanggan)' 
+  },
+];
 
 const formatPriceHelper = (price: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(price);
@@ -131,7 +204,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [storeOpen, setStoreOpen] = useState(true);
   const [minOrder, setMinOrder] = useState(20000);
   const [contacts, setContacts] = useState(CONTACTS);
@@ -351,6 +424,9 @@ export default function App() {
 
   const [adminTab, setAdminTab] = useState<'orders' | 'products' | 'add-product'>('orders');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [selectedNewStatus, setSelectedNewStatus] = useState<OrderStatus>('pending');
+  const [isSavingOrderStatus, setIsSavingOrderStatus] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: '',
@@ -391,7 +467,8 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u && !u.isAnonymous) {
-        if (u.email === 'advanicplus173@gmail.com') {
+        const emailLower = (u.email || '').toLowerCase();
+        if (emailLower === 'advanicplus173@gmail.com') {
           setIsAdminAuthenticated(true);
         } else {
           try {
@@ -437,14 +514,7 @@ export default function App() {
     let isCancelled = false;
     let unsubscribe: (() => void) | null = null;
 
-    const initTracking = async () => {
-      if (!auth.currentUser) {
-        try {
-          await signInAnonymously(auth);
-        } catch (e) {
-          console.warn("Could not ensure auth for tracking:", e);
-        }
-      }
+    const initTracking = () => {
       if (isCancelled) return;
 
       const orderDocRef = doc(db, 'orders', activeOrderId);
@@ -487,11 +557,9 @@ export default function App() {
     setTimeout(() => setAdminClickCount(0), 3000);
   };
 
-  // Sync Settings & Orders
+  // Sync Settings, Products & Orders
   useEffect(() => {
     const settingsRef = doc(db, 'settings', 'config');
-    const productsCol = collection(db, 'products');
-    const ordersCol = collection(db, 'orders');
 
     const unsubSettings = onSnapshot(
       settingsRef,
@@ -508,29 +576,23 @@ export default function App() {
       }
     );
 
-    const unsubProducts = onSnapshot(
-      productsCol,
-      (snap) => {
-        const pList: Product[] = [];
-        snap.forEach(d => pList.push(d.data() as Product));
-        if (pList.length > 0) setProducts(pList);
+    const unsubProducts = subscribeToProducts(
+      (loadedProducts) => {
+        setProducts(loadedProducts);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, 'products');
+        console.warn('Products sync error:', error);
       }
     );
 
     let unsubOrders = () => {};
     if (isAdminAuthenticated && user) {
-      unsubOrders = onSnapshot(
-        ordersCol,
-        (snap) => {
-          const oList: any[] = [];
-          snap.forEach(d => oList.push({ id: d.id, ...d.data() }));
-          setOrders(oList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      unsubOrders = subscribeToAllOrders(
+        (orderList) => {
+          setOrders(orderList);
         },
         (error) => {
-          handleFirestoreError(error, OperationType.GET, 'orders');
+          console.error('Admin orders subscription error:', error);
         }
       );
     }
@@ -690,7 +752,8 @@ export default function App() {
       setPasscodeError('');
       const result = await signInWithPopup(auth, googleProvider);
       const loggedUser = result.user;
-      if (loggedUser.email === 'advanicplus173@gmail.com') {
+      const userEmail = (loggedUser.email || '').toLowerCase();
+      if (userEmail === 'advanicplus173@gmail.com') {
         setIsAdminAuthenticated(true);
         showAlert("Selamat Datang", `Berhasil masuk sebagai Pengelola Warung (${loggedUser.email})`);
       } else {
@@ -720,21 +783,12 @@ export default function App() {
     e.preventDefault();
     if (!editingProduct) return;
     try {
-      const productRef = doc(db, 'products', editingProduct.id);
-      await setDoc(productRef, {
-        id: editingProduct.id,
-        name: editingProduct.name,
-        price: Number(editingProduct.price),
-        unit: editingProduct.unit,
-        category: editingProduct.category,
-        image: editingProduct.image,
-        inStock: editingProduct.inStock,
-        ...(editingProduct.barcode?.trim() ? { barcode: editingProduct.barcode.trim() } : {})
-      });
+      await saveProduct(editingProduct);
       setEditingProduct(null);
       showAlert("Berhasil", "Produk berhasil diperbarui!");
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `products/${editingProduct.id}`);
+      console.error('Gagal menyimpan produk:', error);
+      showAlert("Gagal", "Gagal menyimpan perubahan produk. Pastikan koneksi atau izin admin aktif.");
     }
   };
 
@@ -744,19 +798,16 @@ export default function App() {
       showAlert("Pemberitahuan", "Nama dan Harga produk wajib diisi!");
       return;
     }
-    const newId = 'p_' + Math.random().toString(36).substr(2, 9);
-    const finalProduct: Product = {
-      id: newId,
-      name: newProduct.name,
-      price: Number(newProduct.price),
-      unit: newProduct.unit || 'pcs',
+    const finalProduct = {
+      name: newProduct.name.trim(),
+      price: Math.max(0, Math.round(Number(newProduct.price) || 0)),
+      unit: newProduct.unit?.trim() || 'pcs',
       category: newProduct.category || 'Sembako',
-      image: newProduct.image || 'https://images.tokopedia.net/img/cache/700/VqbcmP/2022/4/11/6f2a6f2a-6f2a-6f2a-6f2a-6f2a6f2a6f2a.jpg',
+      image: newProduct.image?.trim() || 'https://images.tokopedia.net/img/cache/700/VqbcmP/2022/4/11/6f2a6f2a-6f2a-6f2a-6f2a-6f2a6f2a6f2a.jpg',
       inStock: newProduct.inStock !== false
     };
     try {
-      const productRef = doc(db, 'products', newId);
-      await setDoc(productRef, finalProduct);
+      await createProduct(finalProduct);
       setIsAddingProduct(false);
       setNewProduct({
         name: '',
@@ -768,28 +819,31 @@ export default function App() {
       });
       showAlert("Berhasil", "Produk baru berhasil ditambahkan!");
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `products/${newId}`);
+      console.error('Gagal menambahkan produk:', error);
+      showAlert("Gagal", "Gagal menambahkan produk baru. Pastikan koneksi atau izin admin aktif.");
     }
   };
 
   const handleDeleteProduct = (id: string) => {
     showConfirm("Hapus Produk", "Apakah Anda yakin ingin menghapus produk ini dari etalase?", async () => {
       try {
-        const productRef = doc(db, 'products', id);
-        await deleteDoc(productRef);
+        await deleteProduct(id);
         showAlert("Terhapus", "Produk berhasil dihapus!");
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+        console.error('Gagal menghapus produk:', error);
+        showAlert("Gagal", "Gagal menghapus produk dari etalase.");
       }
     });
   };
 
   const toggleStockStatus = async (p: Product) => {
     try {
-      const productRef = doc(db, 'products', p.id);
-      await updateDoc(productRef, { inStock: !p.inStock });
+      await toggleProductStock(p.id, p.inStock);
+      // Optimistic update
+      setProducts(prev => prev.map(item => item.id === p.id ? { ...item, inStock: !item.inStock } : item));
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `products/${p.id}`);
+      console.error('Gagal mengubah status stok:', error);
+      showAlert("Gagal", "Gagal memperbarui ketersediaan stok produk.");
     }
   };
 
@@ -824,16 +878,40 @@ export default function App() {
     }
   };
 
-  const handleDeleteOrder = (orderId: string) => {
-    showConfirm("Hapus Arsip", "Apakah Anda yakin ingin menghapus arsip pesanan ini?", async () => {
+  const handleDeleteOrder = (order: Order) => {
+    const docKey = order.documentId || order.secretToken || order.id;
+    showConfirm("Hapus Arsip", `Apakah Anda yakin ingin menghapus arsip pesanan ${order.orderNumber || order.id}?`, async () => {
       try {
-        const orderRef = doc(db, 'orders', orderId);
-        await deleteDoc(orderRef);
+        await deleteOrder(docKey);
+        setOrders(prev => prev.filter(o => (o.documentId !== docKey && o.secretToken !== docKey && o.id !== docKey)));
         showAlert("Berhasil", "Arsip pesanan berhasil dihapus.");
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `orders/${orderId}`);
+        console.error('Gagal menghapus arsip pesanan:', error);
+        showAlert("Gagal", "Gagal menghapus arsip pesanan.");
       }
     });
+  };
+
+  const handleSaveOrderStatus = async () => {
+    if (!editingOrder) return;
+    const docKey = editingOrder.documentId || editingOrder.secretToken || editingOrder.id;
+    try {
+      setIsSavingOrderStatus(true);
+      await updateOrderStatus(docKey, selectedNewStatus);
+      setOrders(prev => prev.map(item => 
+        (item.documentId === docKey || item.secretToken === docKey || item.id === docKey) 
+          ? { ...item, status: selectedNewStatus } 
+          : item
+      ));
+      const statusObj = ORDER_STATUS_CONFIG.find(s => s.id === selectedNewStatus);
+      showAlert("Status Diperbarui", `Status pesanan #${editingOrder.orderNumber || editingOrder.id} berhasil diperbarui menjadi "${statusObj?.label || selectedNewStatus}".`);
+      setEditingOrder(null);
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      showAlert("Gagal", "Gagal memperbarui status pesanan di database cloud.");
+    } finally {
+      setIsSavingOrderStatus(false);
+    }
   };
 
   // Chart Data Preparation
@@ -1035,7 +1113,7 @@ export default function App() {
       </div>
 
       {/* 3. Main content workspace */}
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-28 md:pb-12">
         <AnimatePresence mode="wait">
           
           {/* DIGITAL KASIR POS VIEW: Clean, Comfortable, Production Grade Financial Workspace */}
@@ -1494,12 +1572,18 @@ export default function App() {
                     >
                       {/* Product Image Area */}
                       <div className="h-32 sm:h-48 w-full relative bg-surface-container-low p-4 flex items-center justify-center">
-                        <img 
-                          src={p.image} 
-                          alt={p.name} 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
-                        />
+                        {p.image && p.image.trim() !== '' ? (
+                          <img 
+                            src={p.image} 
+                            alt={p.name} 
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-outline-variant/60">
+                            📦
+                          </div>
+                        )}
                         {!p.inStock && (
                           <div className="absolute inset-0 bg-white/70 backdrop-blur-2xs flex items-center justify-center p-2">
                             <span className="bg-red-600 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
@@ -1715,12 +1799,18 @@ export default function App() {
                   >
                     {/* Image block */}
                     <div className="h-32 sm:h-48 w-full relative bg-surface-container-low p-4 flex items-center justify-center">
-                      <img 
-                        src={p.image} 
-                        className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300" 
-                        alt={p.name} 
-                        referrerPolicy="no-referrer"
-                      />
+                      {p.image && p.image.trim() !== '' ? (
+                        <img 
+                          src={p.image} 
+                          className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300" 
+                          alt={p.name} 
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-outline-variant/60">
+                          📦
+                        </div>
+                      )}
                       {!p.inStock && (
                         <div className="absolute inset-0 bg-white/70 backdrop-blur-2xs flex items-center justify-center p-2">
                           <span className="bg-red-600 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
@@ -1798,12 +1888,18 @@ export default function App() {
                     className="bg-white rounded-3xl overflow-hidden border border-neutral-200 shadow-soft hover:shadow-lg transition-all flex flex-col justify-between group"
                   >
                     <div className="relative h-56 bg-neutral-100 overflow-hidden">
-                      <img 
-                        src={b.image} 
-                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" 
-                        alt={b.name} 
-                        referrerPolicy="no-referrer"
-                      />
+                      {b.image && b.image.trim() !== '' ? (
+                        <img 
+                          src={b.image} 
+                          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" 
+                          alt={b.name} 
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl">
+                          🛍️
+                        </div>
+                      )}
                       <div className="absolute top-4 left-4 bg-yellow-400 px-3 py-1.5 rounded-full text-[10px] font-black text-neutral-900 shadow-md uppercase tracking-wider">
                         Pilihan Amma Ika ⭐
                       </div>
@@ -1962,12 +2058,18 @@ export default function App() {
                     <div className="divide-y divide-neutral-100 max-h-[300px] overflow-y-auto pr-1">
                       {cart.map(item => (
                         <div key={item.id} className="py-4 flex items-center gap-4">
-                          <img 
-                            src={item.image} 
-                            className="w-12 h-12 rounded-xl object-cover border border-neutral-150 shrink-0" 
-                            alt={item.name} 
-                            referrerPolicy="no-referrer"
-                          />
+                          {item.image && item.image.trim() !== '' ? (
+                            <img 
+                              src={item.image} 
+                              className="w-12 h-12 rounded-xl object-cover border border-neutral-150 shrink-0" 
+                              alt={item.name} 
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-neutral-100 flex items-center justify-center text-lg border border-neutral-150 shrink-0">
+                              📦
+                            </div>
+                          )}
                           <div className="flex-1 space-y-1 text-left">
                             <h5 className="font-extrabold text-xs text-neutral-900 leading-tight uppercase">{item.name}</h5>
                             <span className="font-bold text-xs text-brand-600 leading-none">{formatPrice(item.price)}</span>
@@ -2319,7 +2421,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-3">
                     <button 
                       type="button"
                       onClick={loginWithGoogle}
@@ -2327,6 +2429,15 @@ export default function App() {
                     >
                       <Globe className="w-4 h-4 text-amber-400" />
                       <span>Masuk dengan Akun Google Resmi</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => setCurrentView('home')}
+                      className="w-full py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Kembali ke Beranda</span>
                     </button>
                   </div>
                 </div>
@@ -2485,51 +2596,63 @@ export default function App() {
                     <div className="space-y-6">
                       {orders.map(o => (
                         <div 
-                          key={o.id} 
+                          key={o.documentId || o.secretToken || o.id} 
                           className="p-5 sm:p-6 bg-neutral-100 rounded-xl border border-neutral-200 space-y-4 text-left relative group/item"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="space-y-1">
-                              <h5 className="font-extrabold text-neutral-900 text-sm leading-none uppercase">{o.buyerName}</h5>
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-extrabold text-neutral-900 text-sm leading-none uppercase">{o.buyerName || o.name}</h5>
+                                <span className="font-mono text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 px-1.5 py-0.5 rounded">
+                                  #{o.orderNumber || o.id}
+                                </span>
+                              </div>
                               <span className="text-[10px] text-neutral-400 font-bold block">
                                 {new Date(o.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <select 
-                                value={o.status || 'pending'}
-                                onChange={async (e) => {
-                                  try {
-                                    const { doc, updateDoc } = await import('firebase/firestore');
-                                    const { db } = await import('./lib/firebase');
-                                    const orderRef = doc(db, 'orders', o.id);
-                                    await updateDoc(orderRef, { status: e.target.value });
-                                  } catch (err) {
-                                    console.error('Error updating order status:', err);
-                                  }
+                            <div className="flex items-center flex-wrap gap-2">
+                              {/* Status badge - klik langsung untuk ubah status */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingOrder(o);
+                                  setSelectedNewStatus((o.status as OrderStatus) || 'pending');
                                 }}
-                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none border cursor-pointer ${
-                                  o.status === 'pending' ? 'bg-orange-50 text-orange-650 border-orange-200' :
-                                  o.status === 'confirmed' ? 'bg-amber-50 text-amber-700 border-amber-250' :
-                                  o.status === 'preparing' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                  o.status === 'ready_for_delivery' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                  o.status === 'on_delivery' || o.status === 'delivering' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                  o.status === 'delivered' || o.status === 'completed' ? 'bg-green-50 text-green-700 border-green-250' :
-                                  'bg-red-50 text-red-700 border-red-200'
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border cursor-pointer flex items-center gap-1.5 shadow-2xs hover:scale-102 transition-all ${
+                                  o.status === 'pending' ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' :
+                                  o.status === 'confirmed' ? 'bg-amber-50 text-amber-700 border-amber-250 hover:bg-amber-100' :
+                                  o.status === 'preparing' ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' :
+                                  o.status === 'ready_for_delivery' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' :
+                                  o.status === 'on_delivery' || o.status === 'delivering' ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' :
+                                  o.status === 'delivered' || o.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-250 hover:bg-emerald-100' :
+                                  'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
                                 }`}
+                                title="Klik untuk ubah status pesanan ini"
                               >
-                                <option value="pending">1. Menunggu Konfirmasi (Pending)</option>
-                                <option value="confirmed">2. Dikonfirmasi (Confirmed)</option>
-                                <option value="preparing">3. Sedang Dikemas (Preparing)</option>
-                                <option value="ready_for_delivery">4. Siap Diantar / Ambil (Ready)</option>
-                                <option value="on_delivery">5. Sedang Diantar (On Delivery)</option>
-                                <option value="delivered">6. Pesanan Selesai (Delivered)</option>
-                                <option value="cancelled">X. Batalkan Pesanan (Cancelled)</option>
-                              </select>
+                                <span>{ORDER_STATUS_CONFIG.find(c => c.id === o.status)?.icon || '📌'}</span>
+                                <span>{ORDER_STATUS_CONFIG.find(c => c.id === o.status)?.label || o.status}</span>
+                              </button>
+
+                              {/* Tombol Edit Pensil Khusus Mobile & Desktop */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingOrder(o);
+                                  setSelectedNewStatus((o.status as OrderStatus) || 'pending');
+                                }}
+                                className="px-2.5 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-xl font-bold text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 cursor-pointer"
+                                title="Ubah status pesanan ini"
+                              >
+                                <span>✏️</span>
+                                <span className="text-[10px] font-extrabold uppercase">Edit Status</span>
+                              </button>
+
+                              {/* Tombol Hapus */}
                               <button 
-                                onClick={() => handleDeleteOrder(o.id)} 
-                                className="p-2 text-neutral-400 hover:text-red-500 rounded-lg transition-colors md:opacity-0 group-hover/item:opacity-100 cursor-pointer"
+                                onClick={() => handleDeleteOrder(o)} 
+                                className="p-1.5 text-neutral-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                                 title="Hapus arsip ini"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -2540,7 +2663,11 @@ export default function App() {
                           <div className="flex flex-wrap gap-2 pt-2">
                             {o.items?.map((it: any, i: number) => (
                               <div key={i} className="bg-white px-3 py-2 rounded-lg border border-neutral-150 flex items-center gap-2 shadow-sm text-[10px] font-bold text-neutral-700">
-                                <img src={it.image} className="w-6 h-6 rounded-md object-cover border border-neutral-100 shrink-0" alt={it.name} referrerPolicy="no-referrer" />
+                                {it.image && it.image.trim() !== '' ? (
+                                  <img src={it.image} className="w-6 h-6 rounded-md object-cover border border-neutral-100 shrink-0" alt={it.name} referrerPolicy="no-referrer" />
+                                ) : (
+                                  <span className="w-6 h-6 rounded-md bg-neutral-100 flex items-center justify-center text-xs">📦</span>
+                                )}
                                 <span>{it.name} <span className="text-brand-600 font-extrabold ml-1">x{it.quantity}</span></span>
                               </div>
                             ))}
@@ -2569,6 +2696,151 @@ export default function App() {
                           <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">
                             Belum ada pesanan masuk di data harian.
                           </p>
+                        </div>
+                      )}
+
+                      {/* Modal / Bottom Sheet Edit Status Pesanan */}
+                      {editingOrder && (
+                        <div 
+                          className="fixed inset-0 bg-neutral-950/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in"
+                          onClick={(e) => {
+                            if (e.target === e.currentTarget && !isSavingOrderStatus) {
+                              setEditingOrder(null);
+                            }
+                          }}
+                        >
+                          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl border border-neutral-200 max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden text-left animate-in slide-in-from-bottom">
+                            {/* Drag handle for mobile */}
+                            <div className="w-12 h-1.5 bg-neutral-200 rounded-full mx-auto my-2.5 sm:hidden" />
+
+                            {/* Header */}
+                            <div className="px-5 py-4 border-b border-neutral-100 flex items-start justify-between bg-neutral-50/90 shrink-0">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                    Pesanan #{editingOrder.orderNumber || editingOrder.id}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-neutral-400">
+                                    {new Date(editingOrder.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <h4 className="font-black text-neutral-900 text-base leading-tight uppercase pt-0.5">
+                                  Ubah Status: {editingOrder.buyerName || editingOrder.name}
+                                </h4>
+                                <p className="text-xs font-semibold text-neutral-500">
+                                  Total {formatPrice(editingOrder.total)} • {editingOrder.courier === 'none' ? 'Ambil di Toko' : 'Kurir ' + editingOrder.courier?.toUpperCase()}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingOrder(null)}
+                                disabled={isSavingOrderStatus}
+                                className="w-8 h-8 rounded-full bg-neutral-200/80 hover:bg-neutral-300 text-neutral-700 flex items-center justify-center font-bold text-sm transition-colors cursor-pointer shrink-0 ml-2"
+                                title="Tutup"
+                              >
+                                ✕
+                              </button>
+                            </div>
+
+                            {/* Body (scrollable) */}
+                            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                              {/* Rincian Produk Pesanan (Konfirmasi Visual Jelas) */}
+                              <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/80 space-y-2">
+                                <div className="flex items-center justify-between text-[11px] font-bold text-neutral-600">
+                                  <span>Rincian Barang yang Dipesan ({editingOrder.items?.length || 0} macam):</span>
+                                  <span className="text-brand-600 font-extrabold">{formatPrice(editingOrder.total)}</span>
+                                </div>
+                                <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
+                                  {editingOrder.items?.map((it: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-neutral-150">
+                                      <div className="flex items-center gap-2 truncate">
+                                        {it.image && it.image.trim() !== '' ? (
+                                          <img src={it.image} alt={it.name} className="w-6 h-6 rounded object-cover shrink-0" />
+                                        ) : (
+                                          <span className="w-6 h-6 rounded bg-neutral-100 flex items-center justify-center text-2xs">📦</span>
+                                        )}
+                                        <span className="font-semibold text-neutral-800 truncate">{it.name}</span>
+                                      </div>
+                                      <span className="font-bold text-brand-700 ml-2 shrink-0">x{it.quantity}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Pilihan Status Pesanan */}
+                              <div className="space-y-2 pt-1">
+                                <label className="text-[11px] font-black uppercase text-neutral-600 tracking-wider block">
+                                  Pilih Status Baru:
+                                </label>
+                                <div className="space-y-2">
+                                  {ORDER_STATUS_CONFIG.map(statusItem => {
+                                    const isSelected = selectedNewStatus === statusItem.id;
+                                    return (
+                                      <button
+                                        key={statusItem.id}
+                                        type="button"
+                                        onClick={() => setSelectedNewStatus(statusItem.id)}
+                                        className={`w-full p-3 rounded-xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'bg-brand-50/70 border-brand-500 ring-2 ring-brand-400/40 shadow-xs'
+                                            : 'bg-white border-neutral-200 hover:bg-neutral-50'
+                                        }`}
+                                      >
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 border ${statusItem.badgeClass}`}>
+                                          {statusItem.icon}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between">
+                                            <span className={`text-xs font-black uppercase tracking-tight ${isSelected ? 'text-brand-900' : 'text-neutral-900'}`}>
+                                              {statusItem.label}
+                                            </span>
+                                            {isSelected && (
+                                              <span className="w-5 h-5 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                                ✓
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[11px] text-neutral-500 mt-0.5 leading-tight">
+                                            {statusItem.description}
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Footer (Sticky di HP, mudah dijangkau) */}
+                            <div className="p-4 border-t border-neutral-200 bg-neutral-50 flex items-center gap-3 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setEditingOrder(null)}
+                                disabled={isSavingOrderStatus}
+                                className="px-5 py-3 rounded-xl border border-neutral-300 bg-white text-neutral-700 font-bold text-xs uppercase tracking-wider hover:bg-neutral-100 transition-colors cursor-pointer"
+                              >
+                                Batal
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSaveOrderStatus}
+                                disabled={isSavingOrderStatus}
+                                className="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                              >
+                                {isSavingOrderStatus ? (
+                                  <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Menyimpan...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Simpan Status</span>
+                                    <span>💾</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2611,111 +2883,135 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Edit Product Form Box */}
+                  {/* Edit Product Modal / Bottom Sheet */}
                   {editingProduct && (
-                    <div className="p-6 bg-brand-50/50 border border-brand-200 rounded-2xl space-y-6 animate-in fade-in">
-                      <h4 className="font-black text-neutral-900 uppercase tracking-tight text-sm leading-none">
-                        ✏️ EDIT DETAIL PRODUK: {editingProduct.name.toUpperCase()}
-                      </h4>
-                      <form onSubmit={handleSaveProductEdit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Nama Produk *</label>
-                          <input
-                            type="text"
-                            required
-                            value={editingProduct.name || ''}
-                            onChange={e => setEditingProduct(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                            className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Harga (Rp) *</label>
-                            <input
-                              type="number"
-                              required
-                              value={editingProduct.price || ''}
-                              onChange={e => setEditingProduct(prev => prev ? ({ ...prev, price: Number(e.target.value) }) : null)}
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                            />
+                    <div 
+                      className="fixed inset-0 bg-neutral-950/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-in fade-in"
+                      onClick={(e) => {
+                        if (e.target === e.currentTarget) setEditingProduct(null);
+                      }}
+                    >
+                      <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl border border-neutral-200 max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden text-left animate-in slide-in-from-bottom">
+                        <div className="w-12 h-1.5 bg-neutral-200 rounded-full mx-auto my-2.5 sm:hidden" />
+                        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/90 shrink-0">
+                          <div>
+                            <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest block">Pengelola Toko</span>
+                            <h4 className="font-black text-neutral-900 uppercase tracking-tight text-sm">
+                              ✏️ Edit Detail Produk: {editingProduct.name}
+                            </h4>
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Satuan Unit</label>
-                            <input
-                              type="text"
-                              value={editingProduct.unit || ''}
-                              onChange={e => setEditingProduct(prev => prev ? ({ ...prev, unit: e.target.value }) : null)}
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Barcode & Category */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Barcode</label>
-                            <input
-                              type="text"
-                              value={editingProduct.barcode || ''}
-                              onChange={e => setEditingProduct(prev => prev ? ({ ...prev, barcode: e.target.value }) : null)}
-                              placeholder="Nomor Barcode"
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-mono font-bold focus:outline-none focus:border-brand-500 text-neutral-800"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Kategori</label>
-                            <select
-                              value={editingProduct.category || 'Sembako'}
-                              onChange={e => setEditingProduct(prev => prev ? ({ ...prev, category: e.target.value }) : null)}
-                              className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800 cursor-pointer"
-                            >
-                              {PRODUCT_CATEGORIES.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Status Stok</label>
-                          <div className="flex items-center gap-3 h-10">
-                            <label className="inline-flex items-center cursor-pointer gap-2 bg-white px-3 py-2 rounded-lg border border-neutral-200">
-                              <input
-                                type="checkbox"
-                                checked={editingProduct.inStock !== false}
-                                onChange={e => setEditingProduct(prev => prev ? ({ ...prev, inStock: e.target.checked }) : null)}
-                                className="w-4.5 h-4.5 text-brand-600 border-neutral-300 rounded cursor-pointer"
-                              />
-                              <span className="text-xs font-bold text-neutral-700">Tersedia di Etalase</span>
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">URL Gambar Produk</label>
-                          <input
-                            type="text"
-                            value={editingProduct.image || ''}
-                            onChange={e => setEditingProduct(prev => prev ? ({ ...prev, image: e.target.value }) : null)}
-                            className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
-                          />
-                        </div>
-                        <div className="md:col-span-2 flex justify-end gap-3 pt-3">
                           <button
                             type="button"
                             onClick={() => setEditingProduct(null)}
-                            className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-neutral-200/80 hover:bg-neutral-300 text-neutral-700 flex items-center justify-center font-bold text-sm cursor-pointer"
+                            title="Tutup"
                           >
-                            Batal
-                          </button>
-                          <button
-                            type="submit"
-                            className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
-                          >
-                            Simpan Perubahan 💾
+                            ✕
                           </button>
                         </div>
-                      </form>
+                        <form onSubmit={handleSaveProductEdit} className="p-5 overflow-y-auto flex-1 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Nama Produk *</label>
+                              <input
+                                type="text"
+                                required
+                                value={editingProduct.name || ''}
+                                onChange={e => setEditingProduct(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                                className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Harga (Rp) *</label>
+                                <input
+                                  type="number"
+                                  required
+                                  value={editingProduct.price || ''}
+                                  onChange={e => setEditingProduct(prev => prev ? ({ ...prev, price: Number(e.target.value) }) : null)}
+                                  className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Satuan Unit</label>
+                                <input
+                                  type="text"
+                                  value={editingProduct.unit || ''}
+                                  onChange={e => setEditingProduct(prev => prev ? ({ ...prev, unit: e.target.value }) : null)}
+                                  className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Barcode & Category */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Barcode</label>
+                                <input
+                                  type="text"
+                                  value={editingProduct.barcode || ''}
+                                  onChange={e => setEditingProduct(prev => prev ? ({ ...prev, barcode: e.target.value }) : null)}
+                                  placeholder="Nomor Barcode"
+                                  className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-mono font-bold focus:outline-none focus:border-brand-500 text-neutral-800"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Kategori</label>
+                                <select
+                                  value={editingProduct.category || 'Sembako'}
+                                  onChange={e => setEditingProduct(prev => prev ? ({ ...prev, category: e.target.value }) : null)}
+                                  className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800 cursor-pointer"
+                                >
+                                  {PRODUCT_CATEGORIES.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">Status Stok</label>
+                              <div className="flex items-center gap-3 h-10">
+                                <label className="inline-flex items-center cursor-pointer gap-2 bg-white px-3 py-2 rounded-lg border border-neutral-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingProduct.inStock !== false}
+                                    onChange={e => setEditingProduct(prev => prev ? ({ ...prev, inStock: e.target.checked }) : null)}
+                                    className="w-4.5 h-4.5 text-brand-600 border-neutral-300 rounded cursor-pointer"
+                                  />
+                                  <span className="text-xs font-bold text-neutral-700">Tersedia di Etalase</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 md:col-span-2">
+                              <label className="text-[9px] font-black uppercase text-neutral-500 tracking-wider">URL Gambar Produk</label>
+                              <input
+                                type="text"
+                                value={editingProduct.image || ''}
+                                onChange={e => setEditingProduct(prev => prev ? ({ ...prev, image: e.target.value }) : null)}
+                                className="w-full bg-white px-4 py-2.5 rounded-lg border border-neutral-300 text-xs font-semibold focus:outline-none focus:border-brand-500 text-neutral-800"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="pt-3 sticky bottom-0 bg-white py-3 border-t border-neutral-150 flex justify-end gap-3 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setEditingProduct(null)}
+                              className="px-4 py-2.5 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+                            >
+                              Simpan Perubahan 💾
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
                   )}
 
@@ -2724,12 +3020,18 @@ export default function App() {
                     {products.map(p => (
                       <div key={p.id} className="bg-white border border-neutral-200 rounded-2xl shadow-soft flex flex-col overflow-hidden text-left relative group/prod">
                         <div className="relative aspect-video w-full bg-neutral-100 border-b border-b-neutral-100 overflow-hidden shrink-0">
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover transition-transform group-hover/prod:scale-105"
-                          />
+                          {p.image && p.image.trim() !== '' ? (
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover transition-transform group-hover/prod:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl text-neutral-400">
+                              📦
+                            </div>
+                          )}
                           <span className="absolute top-2.5 left-2.5 bg-neutral-900/80 backdrop-blur-md text-white font-bold text-[9px] px-2.5 py-1 rounded-full uppercase tracking-widest">
                             {p.category}
                           </span>
@@ -2803,44 +3105,6 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* 4. Sleek, Modern bottom navigation stick (Mobile & Small screens only) */}
-      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-lg bg-neutral-900 border border-neutral-800 p-2.5 rounded-2xl shadow-xl flex items-center justify-between z-40 md:hidden">
-        {[
-          { id: 'home', icon: Home, label: 'Beranda' },
-          { id: 'shop', icon: ShoppingBag, label: 'Etalase' },
-          { id: 'bundles', icon: Package, label: 'Paket Hemat' },
-          { id: 'checkout', icon: ShoppingCart, label: 'Keranjang' }
-        ].map(item => (
-          <button
-            key={item.id}
-            onClick={() => {
-              if (item.id === 'checkout') {
-                if (cartCount > 0) {
-                  setCurrentView('checkout');
-                } else {
-                  showAlert('Keranjang Kosong', 'Keranjang belanja Anda kosong. Silakan pilih menu di Etalase terlebih dahulu.');
-                }
-              } else {
-                setCurrentView(item.id as View);
-              }
-            }}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-all rounded-xl relative ${
-              (currentView === item.id) 
-                ? 'bg-neutral-800 text-brand-500 shadow-inner' 
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <item.icon className="w-4.5 h-4.5 shrink-0" />
-            <span className="text-[9px] font-extrabold uppercase tracking-widest leading-none mt-1">{item.label}</span>
-            {item.id === 'checkout' && cartCount > 0 && (
-              <span className="absolute top-1.5 right-4 bg-red-500 text-white font-extrabold text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center">
-                {cartCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </nav>
-
       {/* 5. Minimalistic Professional Footer */}
       <footer className="bg-white border-t border-neutral-200 mt-auto py-12 shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -2881,12 +3145,18 @@ export default function App() {
             >
               {/* Product Header Hero Image */}
               <div className="relative h-44 bg-neutral-100 shrink-0">
-                <img
-                  src={customizingProduct.image}
-                  alt={customizingProduct.name}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
-                />
+                {customizingProduct.image && customizingProduct.image.trim() !== '' ? (
+                  <img
+                    src={customizingProduct.image}
+                    alt={customizingProduct.name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl">
+                    📦
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setCustomizingProduct(null)}
@@ -3266,7 +3536,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* 8. Ultra-Modern Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-neutral-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around select-none">
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-neutral-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] flex items-center justify-around select-none">
         <button
           onClick={() => {
             triggerHaptic();

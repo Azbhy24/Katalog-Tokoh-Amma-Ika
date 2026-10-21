@@ -27,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div>
         {/* Gambar Produk */}
         <div className="relative aspect-4/3 w-full bg-stone-100 overflow-hidden">
-          {product.image ? (
+          {product.image && product.image.trim() !== '' ? (
             <img
               src={product.image}
               alt={product.name}

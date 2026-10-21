@@ -83,7 +83,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Foto Mini & Info */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-14 h-14 rounded-xl bg-white border border-stone-200 overflow-hidden shrink-0">
-                    {product.image ? (
+                    {product.image && product.image.trim() !== '' ? (
                       <img
                         src={product.image}
                         alt={product.name}

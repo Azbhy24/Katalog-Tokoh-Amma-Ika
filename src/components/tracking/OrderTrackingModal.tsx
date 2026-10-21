@@ -13,7 +13,9 @@ import {
   RefreshCw, 
   ExternalLink,
   Ban,
-  Check
+  Check,
+  Search,
+  WifiOff
 } from 'lucide-react';
 import { Order, OrderStatus, StoreSettings } from '../../types';
 import { formatRupiah } from '../../lib/formatters';
@@ -107,42 +109,93 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<'not_found' | 'network' | null>(null);
+  const [activeToken, setActiveToken] = useState<string>(secretToken || '');
+  const [inputToken, setInputToken] = useState<string>(secretToken || '');
 
-  // Berlangganan status realtime menggunakan secretToken
+  // Helper untuk membedakan error koneksi/jaringan fisik vs token tidak valid
+  const isNetworkIssue = (err: any): boolean => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return true;
+    }
+    if (!err) return false;
+    const code = err?.code || '';
+    const msg = (typeof err?.message === 'string' ? err.message : '').toLowerCase();
+    return (
+      code === 'unavailable' ||
+      code === 'deadline-exceeded' ||
+      msg.includes('offline') ||
+      msg.includes('network') ||
+      msg.includes('connection') ||
+      msg.includes('failed-precondition') ||
+      msg.includes('client is offline')
+    );
+  };
+
+  // Sinkronkan token saat modal dibuka atau prop berubah
   useEffect(() => {
-    if (!isOpen || !secretToken) {
+    if (isOpen) {
+      const initial = (secretToken || '').trim();
+      setActiveToken(initial);
+      setInputToken(initial);
+    }
+  }, [isOpen, secretToken]);
+
+  // Berlangganan status realtime menggunakan activeToken
+  useEffect(() => {
+    if (!isOpen) {
       setOrder(null);
       setLoading(false);
       setErrorMessage(null);
+      setErrorType(null);
+      return;
+    }
+
+    if (!activeToken.trim()) {
+      setOrder(null);
+      setLoading(false);
+      setErrorMessage(null);
+      setErrorType(null);
       return;
     }
 
     setLoading(true);
     setErrorMessage(null);
+    setErrorType(null);
 
     const unsubscribe = subscribeToOrder(
-      secretToken,
+      activeToken.trim(),
       (liveOrder) => {
         setLoading(false);
         if (!liveOrder) {
-          setErrorMessage('Pesanan tidak ditemukan atau tautan pelacakan tidak valid.');
+          setErrorMessage('Pesanan tidak ditemukan. Silakan periksa kembali kode pelacakan Anda.');
+          setErrorType('not_found');
           setOrder(null);
         } else {
           setOrder(liveOrder);
           setErrorMessage(null);
+          setErrorType(null);
         }
       },
       (error) => {
         setLoading(false);
         console.error('Tracking listener error:', error);
-        setErrorMessage('Gagal memuat status pesanan secara realtime. Silakan periksa koneksi internet Anda.');
+        if (isNetworkIssue(error)) {
+          setErrorMessage('Gagal memuat status pesanan karena gangguan koneksi internet. Silakan periksa jaringan Anda dan coba lagi.');
+          setErrorType('network');
+        } else {
+          // Token tidak cocok atau pesanan tidak ditemukan
+          setErrorMessage('Pesanan tidak ditemukan. Silakan periksa kembali kode pelacakan Anda.');
+          setErrorType('not_found');
+        }
+        setOrder(null);
       }
     );
 
     return () => {
       unsubscribe();
     };
-  }, [isOpen, secretToken]);
+  }, [isOpen, activeToken]);
 
   const currentStepIdx = useMemo(() => getStepIndex(order?.status), [order?.status]);
   const isCancelled = order?.status === 'cancelled';
@@ -152,10 +205,10 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const contactOwnerUrl = useMemo(() => {
     const ownerPhone = settings.contacts?.OWNER || '85298585059';
     const cleanPhone = sanitizePhoneNumber(ownerPhone);
-    const orderNum = order?.id || 'pesanan saya';
+    const orderNum = order?.id || activeToken.slice(0, 10) || 'pesanan saya';
     const text = `Halo Amma Ika, saya ingin menanyakan status pesanan #${orderNum}.`;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
-  }, [order?.id, settings.contacts]);
+  }, [order?.id, activeToken, settings.contacts]);
 
   if (!isOpen) return null;
 
@@ -183,7 +236,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                 </h2>
               </div>
               <p className="text-2xs sm:text-xs text-stone-500 font-medium">
-                {order?.id ? `No. Pesanan: #${order.id}` : 'Memuat status pesanan...'}
+                {order?.id ? `No. Pesanan: #${order.id}` : activeToken ? 'Memuat status pesanan...' : 'Pantau Pesanan Sembako'}
               </p>
             </div>
             <button
@@ -207,19 +260,120 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
               </div>
             )}
 
-            {/* Error / Not Found State */}
-            {!loading && errorMessage && (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-3 text-center">
-                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-                  <AlertCircle className="w-6 h-6" />
+            {/* Input Token Awal Jika Belum Ada Token */}
+            {!loading && !activeToken.trim() && (
+              <div className="p-6 bg-stone-50 border border-stone-200 rounded-2xl space-y-4 text-center">
+                <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto">
+                  <Search className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="font-bold text-rose-900 text-sm">Pesanan Tidak Ditemukan</h3>
-                  <p className="text-rose-700 text-2xs leading-relaxed max-w-sm mx-auto">
+                  <h3 className="font-bold text-stone-900 text-sm">Lacak Status Pesanan</h3>
+                  <p className="text-stone-600 text-2xs leading-relaxed max-w-sm mx-auto">
+                    Masukkan kode pelacakan unik pesanan Anda untuk memantau status pesanan secara realtime.
+                  </p>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (inputToken.trim()) {
+                      setActiveToken(inputToken.trim());
+                    }
+                  }}
+                  className="pt-2 flex flex-col sm:flex-row gap-2 max-w-sm mx-auto"
+                >
+                  <input
+                    type="text"
+                    value={inputToken}
+                    onChange={(e) => setInputToken(e.target.value)}
+                    placeholder="Contoh: sec_..."
+                    className="flex-1 px-3.5 py-2.5 bg-white border border-stone-300 rounded-xl text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputToken.trim()}
+                    className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer shrink-0"
+                  >
+                    Lacak
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Error / Not Found / Gangguan Jaringan State */}
+            {!loading && errorMessage && (
+              <div className={`p-4 rounded-2xl space-y-3 text-center border ${
+                errorType === 'network'
+                  ? 'bg-amber-50 border-amber-200 text-amber-950'
+                  : 'bg-rose-50 border-rose-200 text-rose-950'
+              }`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+                  errorType === 'network'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-rose-100 text-rose-600'
+                }`}>
+                  {errorType === 'network' ? (
+                    <WifiOff className="w-6 h-6" />
+                  ) : (
+                    <AlertCircle className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <h3 className={`font-bold text-sm ${
+                    errorType === 'network' ? 'text-amber-900' : 'text-rose-900'
+                  }`}>
+                    {errorType === 'network' ? 'Gangguan Jaringan' : 'Pesanan Tidak Ditemukan'}
+                  </h3>
+                  <p className={`text-2xs leading-relaxed max-w-sm mx-auto ${
+                    errorType === 'network' ? 'text-amber-800' : 'text-rose-700'
+                  }`}>
                     {errorMessage}
                   </p>
                 </div>
-                <div className="pt-2">
+
+                {/* Form Perbaikan / Input Token jika Not Found */}
+                {errorType !== 'network' ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (inputToken.trim()) {
+                        setActiveToken(inputToken.trim());
+                      }
+                    }}
+                    className="pt-2 flex flex-col sm:flex-row gap-2 max-w-sm mx-auto"
+                  >
+                    <input
+                      type="text"
+                      value={inputToken}
+                      onChange={(e) => setInputToken(e.target.value)}
+                      placeholder="Masukkan kode pelacakan..."
+                      className="flex-1 px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!inputToken.trim() || loading}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer shrink-0"
+                    >
+                      Cek Lagi
+                    </button>
+                  </form>
+                ) : (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = activeToken;
+                        setActiveToken('');
+                        setTimeout(() => setActiveToken(cur), 50);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Coba Hubungkan Kembali</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-stone-200/60">
                   <a
                     href={contactOwnerUrl}
                     target="_blank"
@@ -384,7 +538,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                     {order.items.map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center py-1.5 border-b border-stone-100 text-stone-700">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          {item.image ? (
+                          {item.image && item.image.trim() !== '' ? (
                             <img 
                               src={item.image} 
                               alt={item.name} 

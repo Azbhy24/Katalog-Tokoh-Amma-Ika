@@ -681,7 +681,7 @@ export default function AdminAddProduct({ onSuccess, onCancel, showAlert }: Admi
           <div className="flex flex-col sm:flex-row items-start gap-4">
             {/* Image Preview Box */}
             <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center shrink-0 overflow-hidden relative group">
-              {image ? (
+              {image && image.trim() !== '' ? (
                 <>
                   <img
                     src={image}

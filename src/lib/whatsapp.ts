@@ -8,6 +8,12 @@ export function sanitizePhoneNumber(phone: string): string {
   let cleaned = phone.replace(/\D/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = '62' + cleaned.substring(1);
+  } else if (cleaned.startsWith('62')) {
+    // Sudah menggunakan kode negara Indonesia
+    return cleaned;
+  } else if (cleaned.startsWith('852')) {
+    // Nomor Hong Kong internasional (misal WA pemilik: +852 9858 5059)
+    return cleaned;
   } else if (cleaned.startsWith('8')) {
     cleaned = '62' + cleaned;
   }

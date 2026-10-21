@@ -58,12 +58,15 @@
         "deliveryFee": { "type": "integer" },
         "total": { "type": "integer" },
         "status": { "type": "string" },
+        "secretToken": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "documentId": { "type": "string" },
         "customerId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "courier": { "type": "string" },
         "deliveryTime": { "type": "string" }
       },
-      "required": ["id", "customerId", "name", "phone", "deliveryMethod", "items", "subtotal", "total", "status", "createdAt"]
+      "required": ["id", "secretToken", "name", "phone", "deliveryMethod", "items", "subtotal", "total", "status", "createdAt"]
     },
     "Admin": {
       "title": "Admin",
