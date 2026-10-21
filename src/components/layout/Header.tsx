@@ -25,6 +25,14 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Identitas Warung */}
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
+            <img
+              src="/amma_ika_logo_transparan.png"
+              alt="Logo Warung Amma Ika"
+              className="w-7 h-7 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-stone-900 font-serif">
               Warung Amma Ika
             </h1>

@@ -55,6 +55,8 @@ import {
 import { PRODUCTS, BUNDLES, CONTACTS, PRODUCT_CATEGORIES, type Product, type Bundle } from './constants';
 import AdminAddProduct from './components/AdminAddProduct';
 import { CatalogPage } from './pages/CatalogPage';
+import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
+import { PWAInstallHeaderButton } from './components/pwa/PWAInstallHeaderButton';
 import { 
   updateOrderStatus, 
   deleteOrder, 
@@ -960,8 +962,20 @@ export default function App() {
           <div className="flex items-center justify-between gap-3">
             {/* Logo Brand Segment */}
             <div onClick={handleHeaderClick} className="flex items-center gap-2.5 cursor-pointer select-none shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-primary-container/20 border border-primary-container/40 flex items-center justify-center text-primary shadow-xs">
-                <Store className="w-5 h-5 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-orange-50/80 border border-orange-200/80 flex items-center justify-center text-primary shadow-xs overflow-hidden relative">
+                <img
+                  src="/amma_ika_logo_transparan.png"
+                  alt="Logo Warung Amma Ika"
+                  className="w-full h-full object-contain p-0.5"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden absolute inset-0 items-center justify-center text-primary">
+                  <Store className="w-5 h-5 text-primary" />
+                </div>
               </div>
               <div>
                 <h1 className="text-lg sm:text-xl font-bold text-primary tracking-tight leading-none">
@@ -1037,6 +1051,8 @@ export default function App() {
                 Paket Hemat
               </button>
               
+              <PWAInstallHeaderButton />
+
               <button 
                 onClick={() => setCurrentView('admin')}
                 className={`p-2 rounded-xl transition-all border cursor-pointer ${
@@ -3637,6 +3653,9 @@ export default function App() {
           <span className="text-[9px] uppercase tracking-wider mt-0.5">Admin</span>
         </button>
       </div>
+
+      {/* PWA In-App Install Prompt Banner */}
+      <PWAInstallBanner />
 
     </div>
   );
