@@ -38,7 +38,7 @@ export const PWAInstallHeaderButton: React.FC = () => {
         aria-label="Pasang Aplikasi"
       >
         <Download className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-        <span className="hidden sm:inline">Pasang App</span>
+        <span className="hidden sm:inline">Pasang di HP</span>
       </button>
 
       <PWAManualModal
